@@ -2,13 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析</title>
+  <title>CQT 周波数分析 (正規化・デバッグ付き)</title>
 </head>
 <body>
-  <h2>周波数分析 (CQT)</h2>
+  <h2>音声ファイル 周波数分析 (CQT)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
-  <pre id="debug" style="background:#eee; padding:10px; height:200px; overflow:auto;"></pre>
+  <pre id="debug" style="background:#eee; padding:10px; height:220px; overflow:auto;"></pre>
 
   <script>
     function hann(N) {
@@ -19,19 +19,18 @@
       return w;
     }
 
-    // CQTカーネル生成
     function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
       const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
       const kernels = [];
       for (let k = 0; k < bins; k++) {
         const fk = fmin * Math.pow(2, k / binsPerOctave);
-        const Nk = Math.round(Q * sr / fk);
+        const Nk = Math.max(16, Math.round(Q * sr / fk)); // 下限確保
         const window = hann(Nk);
         const winRe = new Float32Array(Nk);
         const winIm = new Float32Array(Nk);
         for (let n = 0; n < Nk; n++) {
           const phase = -2 * Math.PI * fk * n / sr;
-          const amp = window[n] / Nk;
+          const amp = window[n]; // ← /Nk を外す（過度な正規化をやめる）
           winRe[n] = amp * Math.cos(phase);
           winIm[n] = amp * Math.sin(phase);
         }
@@ -40,18 +39,20 @@
       return kernels;
     }
 
-    // CQT本体
-    function cqt(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.7, debugCallback=null) {
+    function cqtRaw(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.7, debugCallback=null) {
       const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
       const maxLen = Math.max(...kernels.map(k => k.length));
-      const totalFrames = Math.floor((samples.length - maxLen) / hopLength);
+      const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
       const frames = [];
+      let globalMax = 0;
 
       for (let frameIndex = 0, start = 0;
            start + maxLen < samples.length;
            start += hopLength, frameIndex++) {
 
         const frame = new Float32Array(bins);
+        let frameMax = 0;
+
         for (let k = 0; k < bins; k++) {
           const { winRe, winIm, length } = kernels[k];
           let re = 0, im = 0;
@@ -60,22 +61,34 @@
             re += x * winRe[n];
             im += x * winIm[n];
           }
-          let val = Math.sqrt(re*re + im*im) * 100;
-
-      
-          // 閾値処理
-          if (val < 1e-6) val = 0;
-
-          frame[k] = val;
+          const mag = Math.sqrt(re*re + im*im);
+          frame[k] = mag;
+          if (mag > frameMax) frameMax = mag;
         }
+
+        if (frameMax > globalMax) globalMax = frameMax;
         frames.push(frame);
 
-        // デバッグ出力（フレーム番号だけ）
-        if (debugCallback) {
-          debugCallback(frameIndex+1, totalFrames);
-        }
+        if (debugCallback) debugCallback(frameIndex+1, totalFrames, frameMax);
       }
-      return frames;
+
+      return { frames, globalMax };
+    }
+
+    function normalizeTo100(frames, globalMax, threshold=1e-6) {
+      const out = [];
+      const denom = globalMax > threshold ? globalMax : threshold;
+      for (const frame of frames) {
+        const line = Array.from(frame, v => {
+          let norm = (v / denom) * 100; // 0〜100へ
+          if (norm < 0) norm = 0;
+          if (norm > 100) norm = 100;
+          if (norm < 0.5) return 0;     // 閾値でスッキリ
+          return Math.round(norm);
+        }).join(", ");
+        out.push(line);
+      }
+      return out.join("\r\n");
     }
 
     async function analyzeAudio(file) {
@@ -89,21 +102,17 @@
       const debugArea = document.getElementById("debug");
       debugArea.textContent = "解析開始...\n";
 
-      const result = cqt(samples, sr, hopLength, 256, 32, 32.7,
-        (frameIndex, totalFrames) => {
-          const msg = `フレーム ${frameIndex}/${totalFrames} 処理中...`;
+      const { frames, globalMax } = cqtRaw(
+        samples, sr, hopLength, 256, 32, 32.7,
+        (frameIndex, totalFrames, frameMax) => {
+          const msg = `フレーム ${frameIndex}/${totalFrames} (max=${frameMax.toFixed(6)})`;
           console.log(msg);
           debugArea.textContent += msg + "\n";
-        });
+        }
+      );
 
-      // 出力整形
-      let outputText = "";
-      result.forEach(frame => {
-        const line = Array.from(frame, v => Math.round(v)).join(", ");
-        outputText += line + "\r\n";
-      });
+      const outputText = normalizeTo100(frames, globalMax);
 
-      // ダウンロードリンク生成
       const blob = new Blob([outputText], { type: "text/plain" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -111,7 +120,7 @@
       link.textContent = "結果をダウンロード";
       document.body.appendChild(link);
 
-      debugArea.textContent += "\n解析完了！";
+      debugArea.textContent += `\n解析完了！ globalMax=${globalMax.toFixed(6)} を基準に 0〜100 に正規化`;
     }
 
     document.getElementById("analyzeBtn").addEventListener("click", () => {
