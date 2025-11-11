@@ -2,15 +2,20 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析 (JS版)</title>
+  <title>周波数分析 (CQT 完全版志向)</title>
+  <style>
+    body { font-family: sans-serif; }
+    pre { white-space: pre; max-height: 40vh; overflow: auto; }
+  </style>
 </head>
 <body>
-  <h2>音声ファイル 周波数分析 (CQT)</h2>
+  <h2>音声ファイル 周波数分析 (Constant-Q Transform)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
   <pre id="output"></pre>
 
   <script>
+    // 数学ユーティリティ
     function hann(N) {
       const w = new Float32Array(N);
       for (let n = 0; n < N; n++) {
@@ -19,66 +24,102 @@
       return w;
     }
 
+    // 複素カーネル生成（各バンドごと）
     function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
       const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
-      const kernels = [];
+      const kernels = []; // [{winRe:Float32Array, winIm:Float32Array, length:int, freq:float}]
       for (let k = 0; k < bins; k++) {
-        const fk = fmin * Math.pow(2, k / binsPerOctave);
-        const Nk = Math.round(Q * sr / fk);
+        const fk = fmin * Math.pow(2, k / binsPerOctave); // 中心周波数
+        const Nk = Math.round(Q * sr / fk);               // 可変窓長
         const window = hann(Nk);
+
         const winRe = new Float32Array(Nk);
         const winIm = new Float32Array(Nk);
         for (let n = 0; n < Nk; n++) {
-          const phase = -2 * Math.PI * fk * n / sr;
-          const amp = window[n] / Nk;
+          const phase = -2 * Math.PI * fk * n / sr; // 畳み込みで内積をとるので負符号
+          const amp = window[n] / Nk;                // 正規化（librosaのスケール意識）
           winRe[n] = amp * Math.cos(phase);
           winIm[n] = amp * Math.sin(phase);
         }
-        kernels.push({ winRe, winIm, length: Nk });
+        kernels.push({ winRe, winIm, length: Nk, freq: fk });
       }
-      return kernels;
+      return { kernels, Q };
     }
 
-    function cqt(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.7) {
-      const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
-      const frames = [];
-      for (let start = 0; start + Math.max(...kernels.map(k => k.length)) < samples.length; start += hopLength) {
-        const frame = new Float32Array(bins);
-        for (let k = 0; k < bins; k++) {
-          const { winRe, winIm, length } = kernels[k];
-          let re = 0, im = 0;
-          for (let n = 0; n < length; n++) {
-            const x = samples[start + n] || 0;
-            re += x * winRe[n];
-            im += x * winIm[n];
-          }
-          frame[k] = Math.sqrt(re*re + im*im) / 5000;
+    // 1フレームに対するCQT（複素内積）
+    function cqtFrame(samples, start, kernels) {
+      const out = new Float32Array(kernels.length);
+      for (let k = 0; k < kernels.length; k++) {
+        const { winRe, winIm, length } = kernels[k];
+        let re = 0, im = 0;
+        for (let n = 0; n < length; n++) {
+          const x = samples[start + n] || 0;
+          re += x * winRe[n];
+          im += x * winIm[n];
         }
-        frames.push(frame);
+        // 振幅
+        out[k] = Math.sqrt(re * re + im * im);
       }
-      return frames;
+      return out;
     }
 
-    async function analyzeAudio(file) {
+    async function loadAudio(file) {
       const arrayBuffer = await file.arrayBuffer();
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      return { audioBuffer };
+    }
+
+    async function analyzeAudio(file) {
+      const { audioBuffer } = await loadAudio(file);
       const samples = audioBuffer.getChannelData(0);
       const sr = audioBuffer.sampleRate;
+
+      // パラメータ（あなたのPythonに合わせる）
+      const bins = 256;
+      const binsPerOctave = 32;
       const hopLength = Math.floor(sr / 60);
 
-      const result = cqt(samples, sr, hopLength);
+      // 最低周波数の設定：librosaはfmin指定がないとC-1付近から始まることが多い
+      // ここでは音楽的に妥当な A0=27.5Hz を基準にする
+      const fmin = 27.5;
+
+      // カーネル生成（CQTの要）
+      const { kernels } = makeCQTKernel(sr, fmin, bins, binsPerOctave);
+
+      const frames = [];
+      for (let start = 0; start + Math.max(...kernels.map(k => k.length)) < samples.length; start += hopLength) {
+        const mag = cqtFrame(samples, start, kernels);
+        // Python同様のスケーリング（用途により微調整可）
+        for (let i = 0; i < mag.length; i++) mag[i] = mag[i] / 5000;
+        frames.push(mag);
+      }
+
+      // 出力テキスト整形（行=時間フレーム、列=周波数バンド）
       let outputText = "";
-      result.forEach(frame => {
-        outputText += Array.from(frame, v => v.toFixed(6)).join(", ") + "\r\n";
-      });
+      for (let t = 0; t < frames.length; t++) {
+        const line = Array.from(frames[t], v => v.toFixed(6)).join(", ");
+        outputText += line + "\r\n";
+      }
 
       document.getElementById("output").textContent = outputText;
+
+      // ダウンロード用にテキストファイル生成
+      const blob = new Blob([outputText], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "output.txt";
+      link.textContent = "結果をダウンロード";
+      document.body.appendChild(link);
     }
 
     document.getElementById("analyzeBtn").addEventListener("click", () => {
       const file = document.getElementById("fileInput").files[0];
-      if (file) analyzeAudio(file);
+      if (file) {
+        analyzeAudio(file);
+      } else {
+        alert("音声ファイルを選択してください");
+      }
     });
   </script>
 </body>
