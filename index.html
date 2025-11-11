@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析 (正規化・デバッグ付き)</title>
+  <title>周波数分析</title>
 </head>
 <body>
   <h2>音声ファイル 周波数分析 (CQT)</h2>
@@ -11,6 +11,7 @@
   <pre id="debug" style="background:#eee; padding:10px; height:220px; overflow:auto;"></pre>
 
   <script>
+    // Hann窓
     function hann(N) {
       const w = new Float32Array(N);
       for (let n = 0; n < N; n++) {
@@ -19,6 +20,7 @@
       return w;
     }
 
+    // CQTカーネル生成
     function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
       const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
       const kernels = [];
@@ -30,7 +32,7 @@
         const winIm = new Float32Array(Nk);
         for (let n = 0; n < Nk; n++) {
           const phase = -2 * Math.PI * fk * n / sr;
-          const amp = window[n]; // ← /Nk を外す（過度な正規化をやめる）
+          const amp = window[n]; // /Nk は外す
           winRe[n] = amp * Math.cos(phase);
           winIm[n] = amp * Math.sin(phase);
         }
@@ -39,20 +41,18 @@
       return kernels;
     }
 
-    function cqtRaw(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.7, debugCallback=null) {
+    // CQT本体（軽量化版）
+    function cqtRaw(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55.0, debugCallback=null) {
       const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
       const maxLen = Math.max(...kernels.map(k => k.length));
       const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
       const frames = [];
-      let globalMax = 0;
 
       for (let frameIndex = 0, start = 0;
            start + maxLen < samples.length;
            start += hopLength, frameIndex++) {
 
         const frame = new Float32Array(bins);
-        let frameMax = 0;
-
         for (let k = 0; k < bins; k++) {
           const { winRe, winIm, length } = kernels[k];
           let re = 0, im = 0;
@@ -61,29 +61,31 @@
             re += x * winRe[n];
             im += x * winIm[n];
           }
-          const mag = Math.sqrt(re*re + im*im);
-          frame[k] = mag;
-          if (mag > frameMax) frameMax = mag;
+          frame[k] = Math.sqrt(re*re + im*im);
         }
-
-        if (frameMax > globalMax) globalMax = frameMax;
         frames.push(frame);
 
-        if (debugCallback) debugCallback(frameIndex+1, totalFrames, frameMax);
+        // デバッグ出力（フレーム番号のみ）
+        if (debugCallback) {
+          debugCallback(frameIndex+1, totalFrames);
+        }
       }
+
+      // 全フレーム処理後に一度だけ globalMax を計算
+      const globalMax = Math.max(...frames.flat());
 
       return { frames, globalMax };
     }
 
+    // 0〜100に正規化
     function normalizeTo100(frames, globalMax, threshold=1e-6) {
       const out = [];
       const denom = globalMax > threshold ? globalMax : threshold;
       for (const frame of frames) {
         const line = Array.from(frame, v => {
-          let norm = (v / denom) * 100; // 0〜100へ
-          if (norm < 0) norm = 0;
+          let norm = (v / denom) * 100;
+          if (norm < 0.5) return 0;     // 小さい値はゼロ
           if (norm > 100) norm = 100;
-          if (norm < 0.5) return 0;     // 閾値でスッキリ
           return Math.round(norm);
         }).join(", ");
         out.push(line);
@@ -103,9 +105,9 @@
       debugArea.textContent = "解析開始...\n";
 
       const { frames, globalMax } = cqtRaw(
-        samples, sr, hopLength, 256, 32, 32.7,
-        (frameIndex, totalFrames, frameMax) => {
-          const msg = `フレーム ${frameIndex}/${totalFrames} (max=${frameMax.toFixed(6)})`;
+        samples, sr, hopLength, 64, 12, 55.0,
+        (frameIndex, totalFrames) => {
+          const msg = `フレーム ${frameIndex}/${totalFrames} 処理中...`;
           console.log(msg);
           debugArea.textContent += msg + "\n";
         }
@@ -113,11 +115,14 @@
 
       const outputText = normalizeTo100(frames, globalMax);
 
+      // ダウンロードリンク生成
       const blob = new Blob([outputText], { type: "text/plain" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = "output.txt";
       link.textContent = "結果をダウンロード";
+      link.style.display = "block";
+      link.style.marginTop = "10px";
       document.body.appendChild(link);
 
       debugArea.textContent += `\n解析完了！ globalMax=${globalMax.toFixed(6)} を基準に 0〜100 に正規化`;
