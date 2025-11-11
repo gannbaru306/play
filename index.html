@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析</title>
+  <title>CQT 周波数分析 (デバッグ付き)</title>
 </head>
 <body>
   <h2>音声ファイル 周波数分析 (CQT)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
   <pre id="output"></pre>
-  <pre id="debug"></pre>
+  <pre id="debug" style="background:#eee; padding:10px; height:200px; overflow:auto;"></pre>
 
   <script>
     function hann(N) {
@@ -85,8 +85,8 @@
       const result = cqt(samples, sr, hopLength, 256, 32, 32.7,
         (frameIndex, totalFrames) => {
           const msg = `フレーム ${frameIndex}/${totalFrames} 処理中...`;
-          console.log(msg);
-          debugArea.textContent = msg;
+          console.log(msg); // コンソールにも出す
+          debugArea.textContent += msg + "\n"; // 画面に追記
         });
 
       let outputText = "";
