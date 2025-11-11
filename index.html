@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>周波数分析</title>
+  <title>CQT 周波数分析 (L2正規化・dBスケール・軽量)</title>
 </head>
 <body>
   <h2>音声ファイル 周波数分析 (CQT)</h2>
@@ -20,7 +20,14 @@
       return w;
     }
 
-    // CQTカーネル生成
+    // ベクトルのL2ノルム
+    function l2norm(arr) {
+      let s = 0;
+      for (let i = 0; i < arr.length; i++) s += arr[i] * arr[i];
+      return Math.sqrt(s) || 1; // 0割回避
+    }
+
+    // CQTカーネル生成（L2正規化、librosaのscale=Trueに近づける）
     function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
       const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
       const kernels = [];
@@ -28,69 +35,64 @@
         const fk = fmin * Math.pow(2, k / binsPerOctave);
         const Nk = Math.max(16, Math.round(Q * sr / fk)); // 下限確保
         const window = hann(Nk);
+
+        // 生の窓に対してL2正規化係数を作る
+        const norm = l2norm(window);
+
         const winRe = new Float32Array(Nk);
         const winIm = new Float32Array(Nk);
         for (let n = 0; n < Nk; n++) {
           const phase = -2 * Math.PI * fk * n / sr;
-          const amp = window[n]; // /Nk は外す
-          winRe[n] = amp * Math.cos(phase);
-          winIm[n] = amp * Math.sin(phase);
+          const w = window[n] / norm; // ← L2正規化
+          winRe[n] = w * Math.cos(phase);
+          winIm[n] = w * Math.sin(phase);
         }
         kernels.push({ winRe, winIm, length: Nk });
       }
       return kernels;
     }
 
-    // CQT本体（軽量化版）
-    function cqtRaw(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55.0, debugCallback=null) {
+    // 線形振幅→dB→0〜100へマップ（librosa.power_to_db的な考え方：ここは振幅なので20log10）
+    function ampToPercent(mag, ref=1.0, minDb=-80.0) {
+      const eps = 1e-12;
+      const db = 20 * Math.log10(mag / ref + eps);
+      const dbClamped = Math.max(minDb, Math.min(0, db));
+      // [-80, 0] → [0, 100]
+      return Math.round(((dbClamped - minDb) / (0 - minDb)) * 100);
+    }
+
+    // CQT本体（軽量：64 bins, 12 bins/octave）
+    function cqtToPercent(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55.0, debugCallback=null) {
       const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
       const maxLen = Math.max(...kernels.map(k => k.length));
       const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
-      const frames = [];
+      const lines = [];
 
       for (let frameIndex = 0, start = 0;
            start + maxLen < samples.length;
            start += hopLength, frameIndex++) {
 
-        const frame = new Float32Array(bins);
+        const frame = new Array(bins);
         for (let k = 0; k < bins; k++) {
           const { winRe, winIm, length } = kernels[k];
           let re = 0, im = 0;
+          // 内積
           for (let n = 0; n < length; n++) {
             const x = samples[start + n] || 0;
             re += x * winRe[n];
             im += x * winIm[n];
           }
-          frame[k] = Math.sqrt(re*re + im*im);
+          const mag = Math.sqrt(re*re + im*im);
+          frame[k] = ampToPercent(mag, 1.0, -80.0); // ref=1.0固定、フレーム相対正規化はしない
         }
-        frames.push(frame);
 
-        // デバッグ出力（フレーム番号のみ）
-        if (debugCallback) {
-          debugCallback(frameIndex+1, totalFrames);
-        }
+        // 出力：閾値以下は0のまま（ampToPercent内で実現）
+        lines.push(frame.join(", "));
+
+        if (debugCallback) debugCallback(frameIndex+1, totalFrames);
       }
 
-      // 全フレーム処理後に一度だけ globalMax を計算
-      const globalMax = Math.max(...frames.flat());
-
-      return { frames, globalMax };
-    }
-
-    // 0〜100に正規化
-    function normalizeTo100(frames, globalMax, threshold=1e-6) {
-      const out = [];
-      const denom = globalMax > threshold ? globalMax : threshold;
-      for (const frame of frames) {
-        const line = Array.from(frame, v => {
-          let norm = (v / denom) * 100;
-          if (norm < 0.5) return 0;     // 小さい値はゼロ
-          if (norm > 100) norm = 100;
-          return Math.round(norm);
-        }).join(", ");
-        out.push(line);
-      }
-      return out.join("\r\n");
+      return lines.join("\r\n");
     }
 
     async function analyzeAudio(file) {
@@ -99,13 +101,14 @@
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       const samples = audioBuffer.getChannelData(0);
       const sr = audioBuffer.sampleRate;
+
+      // 実時間的に見やすい hop（約60fps）
       const hopLength = Math.floor(sr / 60);
 
       const debugArea = document.getElementById("debug");
       debugArea.textContent = "解析開始...\n";
 
-      const { frames, globalMax } = cqtRaw(
-        samples, sr, hopLength, 64, 12, 55.0,
+      const outputText = cqtToPercent(samples, sr, hopLength, 64, 12, 55.0,
         (frameIndex, totalFrames) => {
           const msg = `フレーム ${frameIndex}/${totalFrames} 処理中...`;
           console.log(msg);
@@ -113,9 +116,7 @@
         }
       );
 
-      const outputText = normalizeTo100(frames, globalMax);
-
-      // ダウンロードリンク生成
+      // ダウンロードリンク生成（確実に見えるようにスタイル付け）
       const blob = new Blob([outputText], { type: "text/plain" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -125,7 +126,7 @@
       link.style.marginTop = "10px";
       document.body.appendChild(link);
 
-      debugArea.textContent += `\n解析完了！ globalMax=${globalMax.toFixed(6)} を基準に 0〜100 に正規化`;
+      debugArea.textContent += "\n解析完了！（dBスケール→0〜100マップ、フレーム相対正規化なし）";
     }
 
     document.getElementById("analyzeBtn").addEventListener("click", () => {
