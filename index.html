@@ -62,38 +62,35 @@
     }
 
     // CQT本体（軽量：64 bins, 12 bins/octave）
-    function cqtToPercent(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55.0, debugCallback=null) {
-      const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
-      const maxLen = Math.max(...kernels.map(k => k.length));
-      const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
-      const lines = [];
+function cqtToPercent(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55.0, debugCallback=null) {
+  const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
+  const maxLen = Math.max(...kernels.map(k => k.length));
+  const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
+  const lines = [];
 
-      for (let frameIndex = 0, start = 0;
-           start + maxLen < samples.length;
-           start += hopLength, frameIndex++) {
+  for (let frameIndex = 0, start = 0;
+       start + maxLen < samples.length;
+       start += hopLength, frameIndex++) {
 
-        const frame = new Array(bins);
-        for (let k = 0; k < bins; k++) {
-          const { winRe, winIm, length } = kernels[k];
-          let re = 0, im = 0;
-          // 内積
-          for (let n = 0; n < length; n++) {
-            const x = samples[start + n] || 0;
-            re += x * winRe[n];
-            im += x * winIm[n];
-          }
-          const mag = Math.sqrt(re*re + im*im);
-          frame[k] = ampToPercent(mag, 1.0, -80.0); // ref=1.0固定、フレーム相対正規化はしない
-        }
-
-        // 出力：閾値以下は0のまま（ampToPercent内で実現）
-        lines.push(frame.join(", "));
-
-        if (debugCallback) debugCallback(frameIndex+1, totalFrames);
+    for (let k = 0; k < bins; k++) {
+      const { winRe, winIm, length } = kernels[k];
+      let re = 0, im = 0;
+      for (let n = 0; n < length; n++) {
+        const x = samples[start + n] || 0;
+        re += x * winRe[n];
+        im += x * winIm[n];
       }
-
-      return lines.join("\r\n");
+      const mag = Math.sqrt(re*re + im*im);
+      const val = ampToPercent(mag, 1.0, -80.0);
+      lines.push(val.toString()); // ← 値を文字列で追加
     }
+
+    if (debugCallback) debugCallback(frameIndex+1, totalFrames);
+  }
+
+  // 出力は「改行区切り」で連結
+  return lines.join("\n");
+}
 
     async function analyzeAudio(file) {
       const arrayBuffer = await file.arrayBuffer();
