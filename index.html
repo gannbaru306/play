@@ -2,76 +2,51 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析 (L2正規化・dBスケール・軽量)</title>
+  <title>CQT 周波数分析</title>
 </head>
 <body>
-  <h2>音声ファイル 周波数分析 (CQT)</h2>
+  <h2>周波数分析 (CQT)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
   <pre id="debug" style="background:#eee; padding:10px; height:220px; overflow:auto;"></pre>
 
-  <script>
-    // Hann窓
-    function hann(N) {
-      const w = new Float32Array(N);
-      for (let n = 0; n < N; n++) {
-        w[n] = 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1)));
-      }
-      return w;
+<script>
+function hann(N) {
+  const w = new Float32Array(N);
+  for (let n = 0; n < N; n++)
+    w[n] = 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1)));
+  return w;
+}
+
+function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
+  const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
+  const kernels = [];
+  for (let k = 0; k < bins; k++) {
+    const fk = fmin * Math.pow(2, k / binsPerOctave);
+    const Nk = Math.ceil(Q * sr / fk);
+    const window = hann(Nk);
+    const norm = Math.sqrt(Nk);
+    const winRe = new Float32Array(Nk);
+    const winIm = new Float32Array(Nk);
+    for (let n = 0; n < Nk; n++) {
+      const phase = -2 * Math.PI * fk * n / sr;
+      const w = window[n] / norm;
+      winRe[n] = w * Math.cos(phase);
+      winIm[n] = w * Math.sin(phase);
     }
+    kernels.push({ winRe, winIm, length: Nk });
+  }
+  return kernels;
+}
 
-    // ベクトルのL2ノルム
-    function l2norm(arr) {
-      let s = 0;
-      for (let i = 0; i < arr.length; i++) s += arr[i] * arr[i];
-      return Math.sqrt(s) || 1; // 0割回避
-    }
-
-    // CQTカーネル生成（L2正規化、librosaのscale=Trueに近づける）
-    function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
-      const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
-      const kernels = [];
-      for (let k = 0; k < bins; k++) {
-        const fk = fmin * Math.pow(2, k / binsPerOctave);
-        const Nk = Math.max(16, Math.round(Q * sr / fk)); // 下限確保
-        const window = hann(Nk);
-
-        // 生の窓に対してL2正規化係数を作る
-        const norm = l2norm(window);
-
-        const winRe = new Float32Array(Nk);
-        const winIm = new Float32Array(Nk);
-        for (let n = 0; n < Nk; n++) {
-          const phase = -2 * Math.PI * fk * n / sr;
-          const w = window[n] / norm; // ← L2正規化
-          winRe[n] = w * Math.cos(phase);
-          winIm[n] = w * Math.sin(phase);
-        }
-        kernels.push({ winRe, winIm, length: Nk });
-      }
-      return kernels;
-    }
-
-    // 線形振幅→dB→0〜100へマップ（librosa.power_to_db的な考え方：ここは振幅なので20log10）
-    function ampToPercent(mag, ref=1.0, minDb=-80.0) {
-      const eps = 1e-12;
-      const db = 20 * Math.log10(mag / ref + eps);
-      const dbClamped = Math.max(minDb, Math.min(0, db));
-      // [-80, 0] → [0, 100]
-      return Math.round(((dbClamped - minDb) / (0 - minDb)) * 100);
-    }
-
-    // CQT本体（軽量：64 bins, 12 bins/octave）
-function cqtToPercent(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55.0, debugCallback=null) {
+function cqtLinear(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.703, debug=null) {
   const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
   const maxLen = Math.max(...kernels.map(k => k.length));
   const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
   const lines = [];
-
   for (let frameIndex = 0, start = 0;
        start + maxLen < samples.length;
        start += hopLength, frameIndex++) {
-
     for (let k = 0; k < bins; k++) {
       const { winRe, winIm, length } = kernels[k];
       let re = 0, im = 0;
@@ -80,56 +55,13 @@ function cqtToPercent(samples, sr, hopLength, bins=64, binsPerOctave=12, fmin=55
         re += x * winRe[n];
         im += x * winIm[n];
       }
-      const mag = Math.sqrt(re*re + im*im);
-      const val = ampToPercent(mag, 1.0, -80.0);
-      lines.push(val.toString()); // ← 値を文字列で追加
+      const mag = Math.sqrt(re*re + im*im) / 5000;
+      lines.push(mag.toString());
     }
-
-    if (debugCallback) debugCallback(frameIndex+1, totalFrames);
+    if (debug) debug(frameIndex+1, totalFrames);
   }
-
-  // 出力は「改行区切り」で連結
-  return lines.join("\n");
+  return lines.join("\r\n");
 }
-
-    async function analyzeAudio(file) {
-      const arrayBuffer = await file.arrayBuffer();
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      const samples = audioBuffer.getChannelData(0);
-      const sr = audioBuffer.sampleRate;
-
-      // 実時間的に見やすい hop（約60fps）
-      const hopLength = Math.floor(sr / 60);
-
-      const debugArea = document.getElementById("debug");
-      debugArea.textContent = "解析開始...\n";
-
-      const outputText = cqtToPercent(samples, sr, hopLength, 64, 12, 55.0,
-        (frameIndex, totalFrames) => {
-          const msg = `フレーム ${frameIndex}/${totalFrames} 処理中...`;
-          console.log(msg);
-          debugArea.textContent += msg + "\n";
-        }
-      );
-
-      // ダウンロードリンク生成（確実に見えるようにスタイル付け）
-      const blob = new Blob([outputText], { type: "text/plain" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "output.txt";
-      link.textContent = "結果をダウンロード";
-      link.style.display = "block";
-      link.style.marginTop = "10px";
-      document.body.appendChild(link);
-
-      debugArea.textContent += "\n解析完了！（dBスケール→0〜100マップ、フレーム相対正規化なし）";
-    }
-
-    document.getElementById("analyzeBtn").addEventListener("click", () => {
-      const file = document.getElementById("fileInput").files[0];
-      if (file) analyzeAudio(file);
-    });
-  </script>
+</script>
 </body>
 </html>
