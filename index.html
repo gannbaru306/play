@@ -2,16 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析 (デバッグ付き・スケーリング済み)</title>
+  <title>CQT 周波数分析</title>
 </head>
 <body>
-  <h2>音声ファイル 周波数分析 (CQT)</h2>
+  <h2>周波数分析 (CQT)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
   <pre id="debug" style="background:#eee; padding:10px; height:200px; overflow:auto;"></pre>
 
   <script>
-    // Hann窓
     function hann(N) {
       const w = new Float32Array(N);
       for (let n = 0; n < N; n++) {
@@ -61,13 +60,11 @@
             re += x * winRe[n];
             im += x * winIm[n];
           }
-          let val = Math.sqrt(re*re + im*im);
+          let val = Math.sqrt(re*re + im*im) * 100;
 
-          // スケーリングして 0〜100 程度に収める
-          val = val * 100;
-
+      
           // 閾値処理
-          if (val < 1e-3) val = 0;
+          if (val < 1e-6) val = 0;
 
           frame[k] = val;
         }
