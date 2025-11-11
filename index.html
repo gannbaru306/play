@@ -2,16 +2,16 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析 (デバッグ付き)</title>
+  <title>CQT 周波数分析 (デバッグ付き・スケーリング済み)</title>
 </head>
 <body>
   <h2>音声ファイル 周波数分析 (CQT)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
-  <pre id="output"></pre>
   <pre id="debug" style="background:#eee; padding:10px; height:200px; overflow:auto;"></pre>
 
   <script>
+    // Hann窓
     function hann(N) {
       const w = new Float32Array(N);
       for (let n = 0; n < N; n++) {
@@ -20,6 +20,7 @@
       return w;
     }
 
+    // CQTカーネル生成
     function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
       const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
       const kernels = [];
@@ -40,6 +41,7 @@
       return kernels;
     }
 
+    // CQT本体
     function cqt(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.7, debugCallback=null) {
       const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
       const maxLen = Math.max(...kernels.map(k => k.length));
@@ -59,11 +61,19 @@
             re += x * winRe[n];
             im += x * winIm[n];
           }
-          frame[k] = Math.sqrt(re*re + im*im) / 5000;
+          let val = Math.sqrt(re*re + im*im);
+
+          // スケーリングして 0〜100 程度に収める
+          val = val * 100;
+
+          // 閾値処理
+          if (val < 1e-3) val = 0;
+
+          frame[k] = val;
         }
         frames.push(frame);
 
-        // デバッグ出力
+        // デバッグ出力（フレーム番号だけ）
         if (debugCallback) {
           debugCallback(frameIndex+1, totalFrames);
         }
@@ -85,16 +95,16 @@
       const result = cqt(samples, sr, hopLength, 256, 32, 32.7,
         (frameIndex, totalFrames) => {
           const msg = `フレーム ${frameIndex}/${totalFrames} 処理中...`;
-          console.log(msg); // コンソールにも出す
-          debugArea.textContent += msg + "\n"; // 画面に追記
+          console.log(msg);
+          debugArea.textContent += msg + "\n";
         });
 
+      // 出力整形
       let outputText = "";
       result.forEach(frame => {
-        outputText += Array.from(frame, v => v.toFixed(6)).join(", ") + "\r\n";
+        const line = Array.from(frame, v => Math.round(v)).join(", ");
+        outputText += line + "\r\n";
       });
-
-      document.getElementById("output").textContent = outputText;
 
       // ダウンロードリンク生成
       const blob = new Blob([outputText], { type: "text/plain" });
