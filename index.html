@@ -2,66 +2,108 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>CQT 周波数分析</title>
+  <title>CQT 周波数分析 (Python互換版)</title>
 </head>
 <body>
-  <h2>周波数分析 (CQT)</h2>
+  <h2>音声ファイル 周波数分析 (CQT)</h2>
   <input type="file" id="fileInput" accept=".wav,.mp3" />
   <button id="analyzeBtn">解析開始</button>
   <pre id="debug" style="background:#eee; padding:10px; height:220px; overflow:auto;"></pre>
 
-<script>
-function hann(N) {
-  const w = new Float32Array(N);
-  for (let n = 0; n < N; n++)
-    w[n] = 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1)));
-  return w;
-}
-
-function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
-  const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
-  const kernels = [];
-  for (let k = 0; k < bins; k++) {
-    const fk = fmin * Math.pow(2, k / binsPerOctave);
-    const Nk = Math.ceil(Q * sr / fk);
-    const window = hann(Nk);
-    const norm = Math.sqrt(Nk);
-    const winRe = new Float32Array(Nk);
-    const winIm = new Float32Array(Nk);
-    for (let n = 0; n < Nk; n++) {
-      const phase = -2 * Math.PI * fk * n / sr;
-      const w = window[n] / norm;
-      winRe[n] = w * Math.cos(phase);
-      winIm[n] = w * Math.sin(phase);
+  <script>
+    function hann(N) {
+      const w = new Float32Array(N);
+      for (let n = 0; n < N; n++)
+        w[n] = 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1)));
+      return w;
     }
-    kernels.push({ winRe, winIm, length: Nk });
-  }
-  return kernels;
-}
 
-function cqtLinear(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.703, debug=null) {
-  const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
-  const maxLen = Math.max(...kernels.map(k => k.length));
-  const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
-  const lines = [];
-  for (let frameIndex = 0, start = 0;
-       start + maxLen < samples.length;
-       start += hopLength, frameIndex++) {
-    for (let k = 0; k < bins; k++) {
-      const { winRe, winIm, length } = kernels[k];
-      let re = 0, im = 0;
-      for (let n = 0; n < length; n++) {
-        const x = samples[start + n] || 0;
-        re += x * winRe[n];
-        im += x * winIm[n];
+    function makeCQTKernel(sr, fmin, bins, binsPerOctave) {
+      const Q = 1 / (Math.pow(2, 1 / binsPerOctave) - 1);
+      const kernels = [];
+      for (let k = 0; k < bins; k++) {
+        const fk = fmin * Math.pow(2, k / binsPerOctave);
+        const Nk = Math.ceil(Q * sr / fk);
+        const window = hann(Nk);
+        const norm = Math.sqrt(Nk);
+        const winRe = new Float32Array(Nk);
+        const winIm = new Float32Array(Nk);
+        for (let n = 0; n < Nk; n++) {
+          const phase = -2 * Math.PI * fk * n / sr;
+          const w = window[n] / norm;
+          winRe[n] = w * Math.cos(phase);
+          winIm[n] = w * Math.sin(phase);
+        }
+        kernels.push({ winRe, winIm, length: Nk });
       }
-      const mag = Math.sqrt(re*re + im*im) / 5000;
-      lines.push(mag.toString());
+      return kernels;
     }
-    if (debug) debug(frameIndex+1, totalFrames);
-  }
-  return lines.join("\r\n");
-}
-</script>
+
+    function cqtLinear(samples, sr, hopLength, bins=256, binsPerOctave=32, fmin=32.703, debug=null) {
+      const kernels = makeCQTKernel(sr, fmin, bins, binsPerOctave);
+      const maxLen = Math.max(...kernels.map(k => k.length));
+      const totalFrames = Math.max(0, Math.floor((samples.length - maxLen) / hopLength));
+      const lines = [];
+      for (let frameIndex = 0, start = 0;
+           start + maxLen < samples.length;
+           start += hopLength, frameIndex++) {
+        for (let k = 0; k < bins; k++) {
+          const { winRe, winIm, length } = kernels[k];
+          let re = 0, im = 0;
+          for (let n = 0; n < length; n++) {
+            const x = samples[start + n] || 0;
+            re += x * winRe[n];
+            im += x * winIm[n];
+          }
+          const mag = Math.sqrt(re*re + im*im) / 5000;
+          lines.push(mag.toString());
+        }
+        if (debug) debug(frameIndex+1, totalFrames);
+      }
+      return lines.join("\r\n");
+    }
+
+    async function analyzeAudio(file) {
+      const debugArea = document.getElementById("debug");
+      debugArea.textContent = "解析開始...\n";
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const samples = audioBuffer.getChannelData(0);
+        const sr = audioBuffer.sampleRate;
+        const hopLength = Math.floor(sr / 60);
+
+        const outputText = cqtLinear(samples, sr, hopLength, 256, 32, 32.703,
+          (frameIndex, totalFrames) => {
+            debugArea.textContent = `フレーム ${frameIndex}/${totalFrames} 処理中...\n`;
+          }
+        );
+
+        const blob = new Blob([outputText], { type: "text/plain" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "output.txt";
+        link.textContent = "結果をダウンロード";
+        link.style.display = "block";
+        link.style.marginTop = "10px";
+        document.body.appendChild(link);
+        debugArea.textContent += "\n解析完了！";
+      } catch (err) {
+        debugArea.textContent += "\nエラー: " + err.message;
+        console.error(err);
+      }
+    }
+
+    document.getElementById("analyzeBtn").addEventListener("click", () => {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) {
+        alert("音声ファイルを選択してください。");
+        return;
+      }
+      analyzeAudio(file);
+    });
+  </script>
 </body>
 </html>
