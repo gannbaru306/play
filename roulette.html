@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎲 英語物語 縛りルーレット</title>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════
+   BASE
+══════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#06060f;--s1:#0e0e20;--s2:#13132a;--s3:#1a1a35;
+  --gold:#f5c842;--gd:#c49a1a;
+  --red:#ff3b5c;--blue:#3b8fff;--green:#3bffb0;--purple:#b03bff;--orange:#ff8c42;
+  --txt:#f0eaff;--dim:#8880aa;--border:#ffffff18;
+  --gg:0 0 20px #f5c84288,0 0 40px #f5c84244;
+  --gr:0 0 20px #ff3b5c88,0 0 40px #ff3b5c44;
+  --ggn:0 0 20px #3bffb088,0 0 40px #3bffb044;
+  --gp:0 0 20px #b03bff88,0 0 40px #b03bff44;
+  --go:0 0 20px #ff8c4288,0 0 40px #ff8c4244;
+}
+body{background:var(--bg);color:var(--txt);font-family:'M PLUS Rounded 1c',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── fixed layers ── */
+#stars{position:fixed;inset:0;pointer-events:none;z-index:0;}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d) ease-in-out infinite alternate;}
+@keyframes twinkle{from{opacity:.1;transform:scale(1)}to{opacity:.9;transform:scale(1.4)}}
+#particles{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden;}
+.particle{position:absolute;border-radius:50%;animation:pfly 1.5s ease-out forwards;}
+@keyframes pfly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}}
+#goldRain{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;}
+.coin{position:absolute;font-size:1.5rem;animation:coinFall var(--dur) ease-in forwards;top:-60px;}
+@keyframes coinFall{0%{transform:translateY(0) rotate(0);opacity:1}80%{opacity:1}100%{transform:translateY(110vh) rotate(var(--rot));opacity:0}}
+.lightning{position:fixed;inset:0;pointer-events:none;z-index:55;background:#fff;opacity:0;animation:lightAnim .5s ease-out forwards;}
+@keyframes lightAnim{0%{opacity:0}10%{opacity:.7}20%{opacity:0}30%{opacity:.4}100%{opacity:0}}
+
+/* ── overlay ── */
+.overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .3s;}
+.overlay.show{opacity:1;pointer-events:auto;}
+.ovbg{position:absolute;inset:0;background:#00000088;backdrop-filter:blur(4px);}
+.ovcontent{position:relative;z-index:1;text-align:center;padding:40px 32px;background:linear-gradient(135deg,var(--s2),var(--s3));border-radius:24px;border:1px solid #fff2;max-width:500px;width:90%;transform:scale(.8);transition:transform .4s cubic-bezier(.175,.885,.32,1.275);}
+.overlay.show .ovcontent{transform:scale(1);}
+.ovemoji{font-size:4rem;margin-bottom:16px;display:block;animation:bounceIn .6s cubic-bezier(.175,.885,.32,1.275);}
+@keyframes bounceIn{0%{transform:scale(0) rotate(-20deg)}60%{transform:scale(1.15) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
+.ovtitle{font-family:'Dela Gothic One',sans-serif;font-size:1.8rem;margin-bottom:10px;}
+.ovmsg{font-size:1rem;color:var(--dim);line-height:1.6;margin-bottom:24px;}
+.ovclose{padding:12px 32px;border:none;border-radius:12px;font-family:'Dela Gothic One',sans-serif;font-size:1rem;cursor:pointer;transition:all .3s;}
+.ovclose:hover{filter:brightness(1.2);transform:translateY(-1px);}
+
+/* ── toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:.85rem;font-weight:700;opacity:0;transform:translateY(10px);transition:all .3s;z-index:300;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.err{border-color:var(--red);color:var(--red);}
+
+/* ══════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════ */
+.app{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:20px 16px 80px;}
+
+/* header */
+.hdr{text-align:center;margin-bottom:28px;padding-top:12px;}
+.hdr-title{font-family:'Dela Gothic One',sans-serif;font-size:clamp(1.6rem,5vw,2.8rem);background:linear-gradient(135deg,var(--gold) 0%,#ff9f43 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 20px #f5c84266);line-height:1.2;}
+.hdr-sub{color:var(--dim);font-size:.82rem;margin-top:6px;}
+.edit-toggle{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:.8rem;color:var(--dim);border:1px solid var(--border);border-radius:999px;padding:5px 14px;cursor:pointer;background:transparent;transition:all .25s;font-family:'M PLUS Rounded 1c',sans-serif;font-weight:700;}
+.edit-toggle:hover{color:var(--gold);border-color:var(--gold);background:#f5c84210;}
+.edit-toggle .arr{transition:transform .3s;display:inline-block;}
+.edit-toggle.open .arr{transform:rotate(180deg);}
+
+/* steps */
+.steps-bar{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:24px;}
+.step-dot{width:10px;height:10px;border-radius:50%;background:#fff2;border:1px solid #fff3;transition:all .4s;}
+.step-dot.active{background:var(--gold);box-shadow:var(--gg);transform:scale(1.4);}
+.step-dot.done{background:var(--green);box-shadow:0 0 8px #3bffb066;}
+.prog-txt{text-align:center;font-size:.8rem;color:var(--dim);margin-bottom:12px;letter-spacing:.05em;}
+
+/* roulette card */
+.rc{background:linear-gradient(135deg,var(--s2),var(--s3));border:1px solid #fff1;border-radius:20px;padding:28px 24px;margin-bottom:20px;position:relative;overflow:hidden;}
+.rc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#f5c84210 0%,transparent 60%);pointer-events:none;}
+.rc-title{font-family:'Dela Gothic One',sans-serif;font-size:1rem;color:var(--gold);letter-spacing:.08em;margin-bottom:4px;}
+.rc-desc{font-size:.78rem;color:var(--dim);margin-bottom:20px;}
+
+/* slot */
+.slot{background:var(--bg);border:2px solid #fff2;border-radius:14px;padding:18px;text-align:center;margin-bottom:14px;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:border-color .4s,box-shadow .4s;}
+.slot.spinning{border-color:var(--gold);box-shadow:var(--gg);}
+.slot.r-jackpot{border-color:#ffd700;box-shadow:0 0 20px #ffd70088,0 0 40px #ffd70044;animation:pw .8s;}
+.slot.r-win{border-color:var(--green);box-shadow:var(--ggn);animation:pw .8s;}
+.slot.r-normal{border-color:#fff3;}
+.slot.r-bad{border-color:var(--orange);box-shadow:var(--go);animation:pb .6s;}
+.slot.r-doom{border-color:var(--red);box-shadow:var(--gr);animation:pb .6s;}
+.slot.r-special{border-color:var(--purple);box-shadow:var(--gp);animation:ps .8s;}
+@keyframes pw{0%,100%{transform:scale(1)}40%{transform:scale(1.04)}60%{transform:scale(.98)}}
+@keyframes pb{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes ps{0%,100%{transform:scale(1) rotate(0)}25%{transform:scale(1.03) rotate(-1deg)}75%{transform:scale(1.03) rotate(1deg)}}
+.slot-num{font-family:'Dela Gothic One',sans-serif;font-size:2.8rem;line-height:1;color:var(--gold);filter:drop-shadow(0 0 10px #f5c84266);}
+.slot-num.rolling{animation:rn .08s steps(1) infinite;}
+@keyframes rn{0%{transform:translateY(-3px);opacity:.6}50%{transform:translateY(3px);opacity:1}100%{transform:translateY(-3px);opacity:.6}}
+.slot-text{font-size:1.05rem;font-weight:700;color:var(--txt);margin-top:6px;line-height:1.4;}
+.slot-prob{font-size:.72rem;color:var(--dim);margin-top:4px;}
+.rbadge{position:absolute;top:10px;right:10px;font-size:.7rem;font-weight:900;padding:3px 10px;border-radius:999px;letter-spacing:.1em;opacity:0;transition:opacity .4s;}
+.rbadge.show{opacity:1;}
+.bj{background:#ffd700;color:#333;} .bw{background:var(--green);color:#003322;} .bn{background:#fff3;color:var(--dim);} .bb{background:var(--orange);color:#fff;} .bd{background:var(--red);color:#fff;} .bs{background:var(--purple);color:#fff;}
+
+.roll-hist{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:8px;}
+.roll-chip{padding:4px 12px;border-radius:999px;background:#fff1;font-size:.8rem;font-weight:700;color:var(--txt);border-left:3px solid var(--gold);}
+
+.spin-btn{width:100%;padding:16px;border:none;border-radius:12px;font-family:'Dela Gothic One',sans-serif;font-size:1.1rem;letter-spacing:.1em;cursor:pointer;position:relative;overflow:hidden;transition:all .3s;background:linear-gradient(135deg,var(--gd),var(--gold));color:#06060f;box-shadow:0 4px 20px #f5c84244;}
+.spin-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px #f5c84266;}
+.spin-btn:active:not(:disabled){transform:translateY(1px);}
+.spin-btn:disabled{opacity:.5;cursor:not-allowed;}
+.spin-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,#fff4,transparent);transform:translateX(-100%);transition:transform .6s;}
+.spin-btn:hover:not(:disabled)::after{transform:translateX(100%);}
+
+/* results panel */
+.res-panel{background:linear-gradient(135deg,var(--s2),var(--s3));border:1px solid #fff1;border-radius:20px;padding:24px;margin-bottom:20px;}
+.res-title{font-family:'Dela Gothic One',sans-serif;font-size:1.1rem;color:var(--gold);margin-bottom:16px;text-align:center;}
+.res-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #ffffff0a;opacity:0;transform:translateX(-10px);transition:all .4s;}
+.res-item.show{opacity:1;transform:translateX(0);}
+.res-item:last-child{border-bottom:none;}
+.ri-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px;}
+.ri-label{font-size:.72rem;color:var(--dim);margin-bottom:2px;}
+.ri-val{font-size:.92rem;font-weight:700;color:var(--txt);line-height:1.4;}
+.vj{color:#ffd700;}.vw{color:var(--green);}.vb{color:var(--orange);}.vd{color:var(--red);}.vs{color:#c090ff;}.vsk{color:var(--blue);}
+
+.flow-btns{display:flex;gap:12px;margin-top:20px;}
+.btn-sec{flex:1;padding:13px;border:1px solid #fff3;border-radius:12px;background:transparent;color:var(--dim);font-family:'M PLUS Rounded 1c',sans-serif;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .3s;}
+.btn-sec:hover{border-color:var(--gold);color:var(--gold);background:#f5c84210;}
+.btn-pri{flex:2;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#7b3bff,var(--purple));color:#fff;font-family:'Dela Gothic One',sans-serif;font-size:1rem;letter-spacing:.05em;cursor:pointer;transition:all .3s;box-shadow:0 4px 20px #b03bff44;}
+.btn-pri:hover{transform:translateY(-2px);box-shadow:0 8px 30px #b03bff66;}
+
+/* final */
+.final{display:none;text-align:center;padding:20px;}
+.final.show{display:block;}
+.final-title{font-family:'Dela Gothic One',sans-serif;font-size:2rem;background:linear-gradient(135deg,var(--gold),#ff9f43,var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;filter:drop-shadow(0 0 20px #f5c84244);}
+.final-sub{color:var(--dim);font-size:.9rem;margin-bottom:28px;}
+.final-list{list-style:none;margin-bottom:28px;text-align:left;}
+.final-list li{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:12px;margin-bottom:8px;background:#fff1;border:1px solid #fff1;opacity:0;transform:translateY(10px);transition:all .4s;}
+.final-list li.show{opacity:1;transform:translateY(0);}
+.restart-btn{padding:16px 40px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--gd),var(--gold));color:#06060f;font-family:'Dela Gothic One',sans-serif;font-size:1.1rem;cursor:pointer;transition:all .3s;box-shadow:0 4px 20px #f5c84244;}
+.restart-btn:hover{transform:translateY(-3px);box-shadow:0 8px 30px #f5c84266;}
+
+@keyframes shk{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px) rotate(-.5deg)}40%{transform:translateX(8px) rotate(.5deg)}60%{transform:translateX(-5px) rotate(-.3deg)}80%{transform:translateX(5px) rotate(.3deg)}}
+.shake{animation:shk .5s ease-in-out;}
+
+/* ══════════════════════════════════════
+   EDITOR PANEL
+══════════════════════════════════════ */
+.editor-wrap{overflow:hidden;max-height:0;transition:max-height .5s cubic-bezier(.4,0,.2,1);margin-bottom:20px;}
+.editor-wrap.open{max-height:9999px;}
+.editor-panel{background:linear-gradient(135deg,var(--s2),var(--s3));border:1px solid #fff1;border-radius:20px;padding:24px;position:relative;}
+.editor-panel::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#b03bff08 0%,transparent 60%);pointer-events:none;border-radius:20px;}
+
+/* editor tabs */
+.etabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);}
+.etab{padding:9px 18px;background:transparent;border:none;color:var(--dim);font-family:'M PLUS Rounded 1c',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.etab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.esec{display:none;}
+.esec.active{display:block;}
+
+/* generic btns in editor */
+.ebtn{padding:7px 14px;border-radius:8px;border:none;font-family:'M PLUS Rounded 1c',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;}
+.ebtn-gold{background:linear-gradient(135deg,var(--gd),var(--gold));color:#06060f;}
+.ebtn-gold:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.ebtn-purple{background:linear-gradient(135deg,#5a1a8a,var(--purple));color:#fff;}
+.ebtn-purple:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.ebtn-green{background:linear-gradient(135deg,#1a5a3a,var(--green));color:#003322;}
+.ebtn-green:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.ebtn-red{background:linear-gradient(135deg,#5a1a2a,var(--red));color:#fff;}
+.ebtn-red:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.ebtn-ghost{background:transparent;border:1px solid var(--border);color:var(--dim);}
+.ebtn-ghost:hover{border-color:var(--gold);color:var(--gold);}
+.ebtn-sm{padding:4px 9px;font-size:.76rem;}
+
+/* category accordion */
+.cat-grid{display:flex;flex-direction:column;gap:12px;}
+.cat-card{background:#0e0e2088;border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.cat-head{padding:13px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;transition:background .2s;}
+.cat-head:hover{background:#fff05;}
+.ch-icon{font-size:1.2rem;flex-shrink:0;}
+.ch-name{font-family:'Dela Gothic One',sans-serif;font-size:.95rem;color:var(--gold);flex:1;}
+.ch-cnt{font-size:.75rem;color:var(--dim);margin-right:6px;}
+.ch-arr{color:var(--dim);font-size:.8rem;transition:transform .3s;}
+.ch-arr.open{transform:rotate(180deg);}
+.cat-body{display:none;padding:12px 16px 16px;border-top:1px solid var(--border);}
+.cat-body.open{display:block;}
+
+/* meta row */
+.cat-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;}
+.fgrp{display:flex;flex-direction:column;gap:3px;}
+.fgrp label{font-size:.72rem;color:var(--dim);}
+.fgrp input,.fgrp select{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--txt);padding:5px 8px;font-size:.83rem;font-family:'M PLUS Rounded 1c',sans-serif;transition:border-color .2s;}
+.fgrp input:focus,.fgrp select:focus{outline:none;border-color:var(--gold);}
+.fgrp input[type=text]{width:160px;}
+.fgrp input.w50{width:50px;text-align:center;}
+.fgrp input.w60{width:60px;text-align:center;}
+.fgrp input.w80{width:80px;}
+
+/* items table */
+.itbl{width:100%;border-collapse:collapse;font-size:.82rem;}
+.itbl th{padding:7px 9px;text-align:left;color:var(--dim);font-weight:700;border-bottom:1px solid var(--border);font-size:.73rem;letter-spacing:.05em;}
+.itbl td{padding:6px 9px;border-bottom:1px solid #fff05;vertical-align:middle;}
+.itbl tr:last-child td{border-bottom:none;}
+.itbl tr:hover td{background:#fff04;}
+.td-num{width:36px;text-align:center;font-weight:900;color:var(--gold);font-family:'Dela Gothic One',sans-serif;}
+.td-text input{width:100%;background:transparent;border:none;color:var(--txt);font-family:'M PLUS Rounded 1c',sans-serif;font-size:.83rem;padding:2px 4px;border-radius:4px;}
+.td-text input:focus{outline:1px solid var(--gold);background:#fff06;}
+.td-w{width:90px;}
+.td-w input{width:58px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--txt);padding:3px 6px;text-align:center;font-size:.82rem;}
+.td-w input:focus{outline:none;border-color:var(--gold);}
+.td-type{width:140px;}
+.td-type select{background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--txt);padding:3px 6px;font-size:.79rem;width:132px;}
+.td-type select:focus{outline:none;border-color:var(--gold);}
+.td-tgt{width:120px;}
+.td-tgt input{width:110px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--txt);padding:3px 6px;font-size:.78rem;}
+.td-tgt input:focus{outline:none;border-color:var(--gold);}
+.td-act{width:34px;text-align:center;}
+
+/* prob bar */
+.prob-bar-wrap{height:3px;background:#fff1;border-radius:2px;margin-top:2px;}
+.prob-bar{height:3px;border-radius:2px;background:var(--gold);transition:width .3s;}
+.pct-txt{font-size:.66rem;color:var(--dim);}
+.prob-total{font-size:.76rem;margin-top:8px;}
+.prob-total.ok{color:var(--green);}
+.prob-total.warn{color:var(--orange);}
+
+/* type badge in table */
+.tbadge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:.7rem;font-weight:700;pointer-events:none;}
+
+/* add category form */
+.add-cat-form{background:#06060f88;border:1px dashed var(--border);border-radius:12px;padding:16px;margin-top:10px;}
+.add-cat-form h4{font-family:'Dela Gothic One',sans-serif;font-size:.88rem;color:var(--dim);margin-bottom:12px;}
+
+/* CSV section */
+.csv-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:600px){.csv-grid{grid-template-columns:1fr;}}
+.csv-box{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.csv-box h4{font-family:'Dela Gothic One',sans-serif;font-size:.92rem;color:var(--gold);margin-bottom:8px;}
+.csv-box p{font-size:.78rem;color:var(--dim);margin-bottom:12px;line-height:1.6;}
+.csv-ta{width:100%;height:180px;background:#06060f;border:1px solid var(--border);border-radius:8px;color:var(--txt);padding:10px;font-family:monospace;font-size:.75rem;resize:vertical;}
+.csv-ta:focus{outline:none;border-color:var(--gold);}
+.csv-fmt{background:#0a0a18;border-radius:7px;padding:10px;font-family:monospace;font-size:.7rem;color:var(--dim);white-space:pre;overflow-x:auto;margin-bottom:10px;line-height:1.6;}
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--dim);font-size:.82rem;cursor:pointer;transition:all .3s;margin-bottom:10px;}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--gold);color:var(--gold);background:#f5c84208;}
+.drop-zone .di{font-size:1.8rem;margin-bottom:6px;}
+
+/* special info */
+.sp-info{background:#f5c84210;border:1px solid #f5c84228;border-radius:8px;padding:9px 12px;font-size:.77rem;color:#f5c842aa;margin-bottom:10px;line-height:1.6;}
+
+/* save bar */
+.save-bar{display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border);margin-top:16px;}
+
+/* responsive */
+@media(max-width:600px){
+  .rc{padding:20px 16px;}
+  .slot-num{font-size:2.2rem;}
+  .ovtitle{font-size:1.4rem;}
+  .itbl th:nth-child(3),.itbl td:nth-child(3){display:none;}
+  .td-type{width:110px;}.td-type select{width:105px;}
+}
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div id="particles"></div>
+<div id="goldRain"></div>
+
+<!-- overlay -->
+<div class="overlay" id="overlay">
+  <div class="ovbg" onclick="closeOverlay()"></div>
+  <div class="ovcontent">
+    <span class="ovemoji" id="ovEmoji">🎉</span>
+    <div class="ovtitle" id="ovTitle"></div>
+    <div class="ovmsg" id="ovMsg"></div>
+    <button class="ovclose" id="ovClose" onclick="closeOverlay()">続ける</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="app">
+
+  <!-- ── HEADER ── -->
+  <div class="hdr">
+    <div class="hdr-title">🎲 英語物語<br>縛りルーレット</div>
+    <div class="hdr-sub">特殊ルーレットから始めて、運命の縛りを引け！</div>
+    <button class="edit-toggle" id="editToggle" onclick="toggleEditor()">
+      ⚙ データ編集 <span class="arr">▼</span>
+    </button>
+  </div>
+
+  <!-- ══ EDITOR PANEL (folded) ══ -->
+  <div class="editor-wrap" id="editorWrap">
+    <div class="editor-panel">
+      <div class="etabs">
+        <button class="etab active" onclick="eTab('cats')">📋 カテゴリ・項目</button>
+        <button class="etab" onclick="eTab('csv')">📄 CSV</button>
+      </div>
+
+      <!-- CATS TAB -->
+      <div class="esec active" id="etab-cats">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <div style="font-size:.8rem;color:var(--dim)">カテゴリと出目を自由に編集。weightで確率を調整。</div>
+          <button class="ebtn ebtn-purple ebtn-sm" onclick="showAddCatForm()">＋ カテゴリ追加</button>
+        </div>
+        <div class="cat-grid" id="catGrid"></div>
+        <div id="addCatFormWrap"></div>
+        <div class="save-bar">
+          <button class="ebtn ebtn-ghost ebtn-sm" onclick="resetToDefault()">🔄 サンプルに戻す</button>
+          <button class="ebtn ebtn-gold" onclick="saveData()">💾 保存してゲームに反映</button>
+        </div>
+      </div>
+
+      <!-- CSV TAB -->
+      <div class="esec" id="etab-csv">
+        <div class="csv-grid">
+          <div class="csv-box">
+            <h4>📥 インポート</h4>
+            <p>CSVファイルをドロップ、またはテキストを貼り付けてインポート。</p>
+            <div class="csv-fmt">category_id,category_name,icon,order,text,type,weight,target
+special,特殊,🎭,1,当たり,win,10,
+attribute,属性,🔥,2,火単属性,normal,10,</div>
+            <p style="margin-bottom:10px;line-height:1.6;font-size:.77rem;">
+              <b style="color:var(--txt)">type値：</b> jackpot / win / normal / bad / doom<br>
+              <span style="color:var(--purple)">特殊用：</span> skip / double / hard / chain / hellAll<br>
+              <b style="color:var(--txt)">target：</b> skip/double/hardの対象カテゴリID（カンマ区切りも可）
+            </p>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fi').click()">
+              <div class="di">📂</div>
+              クリックまたはCSVをドロップ
+            </div>
+            <input type="file" id="fi" accept=".csv" style="display:none" onchange="handleFile(this)">
+            <textarea class="csv-ta" id="importTxt" placeholder="またはここにCSVテキストを貼り付け…"></textarea>
+            <button class="ebtn ebtn-green" style="margin-top:8px;width:100%" onclick="importCSV()">⬆ インポート実行</button>
+          </div>
+          <div class="csv-box">
+            <h4>📤 エクスポート</h4>
+            <p>現在のデータをCSVとして出力。バックアップや共有に。</p>
+            <textarea class="csv-ta" id="exportTxt" readonly placeholder="「生成」ボタンを押してください"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="ebtn ebtn-gold" style="flex:1" onclick="exportCSV()">📋 生成＋コピー</button>
+              <button class="ebtn ebtn-purple" style="flex:1" onclick="dlCSV()">⬇ DL</button>
+            </div>
+          </div>
+        </div>
+        <div class="save-bar">
+          <button class="ebtn ebtn-gold" onclick="saveData()">💾 保存してゲームに反映</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GAME ── -->
+  <div id="gameArea">
+    <div class="steps-bar" id="stepsBar"></div>
+    <div class="prog-txt" id="progTxt">読み込み中…</div>
+
+    <div class="rc" id="mainCard">
+      <div class="rc-title" id="cardTitle"></div>
+      <div class="rc-desc" id="cardDesc"></div>
+      <div class="slot" id="slot">
+        <div class="slot-num" id="slotNum">？</div>
+        <div class="slot-text" id="slotTxt">ボタンを押して運命を引け！</div>
+        <div class="slot-prob" id="slotProb"></div>
+        <div class="rbadge" id="rbadge"></div>
+      </div>
+      <div class="roll-hist" id="rollHist"></div>
+      <button class="spin-btn" id="spinBtn" onclick="spin()">🎲 ルーレットを引く</button>
+    </div>
+
+    <div class="res-panel" id="resPanel" style="display:none">
+      <div class="res-title">📋 現在の縛り</div>
+      <div id="resList"></div>
+      <div class="flow-btns" id="flowBtns" style="display:none">
+        <button class="btn-sec" onclick="resetGame()">🔄 最初から</button>
+        <button class="btn-pri" id="nextBtn" onclick="nextStep()">次のルーレットへ →</button>
+      </div>
+    </div>
+
+    <div class="final" id="finalScreen">
+      <div class="final-title">🏆 縛り確定！</div>
+      <div class="final-sub">この条件で編成を組んで対戦だ！</div>
+      <ul class="final-list" id="finalList"></ul>
+      <button class="restart-btn" onclick="resetGame()">🎲 もう一度引く</button>
+    </div>
+  </div>
+
+</div><!-- .app -->
+
+<script>
+/* ══════════════════════════════════════════
+   CONSTANTS & DATA
+══════════════════════════════════════════ */
+const LS_KEY = 'eigo_roulette_v2';
+
+const TYPE_OPTS = [
+  {v:'jackpot',l:'大当たり 🌟'},{v:'win',l:'当たり ✨'},{v:'normal',l:'普通 ➖'},
+  {v:'bad',l:'ハズレ 💀'},{v:'doom',l:'大ハズレ 🔥'},
+  {v:'skip',l:'[特殊] スキップ付与'},{v:'double',l:'[特殊] 2回引き付与'},
+  {v:'hard',l:'[特殊] 厳しい方付与'},{v:'chain',l:'[特殊] 連鎖地獄'},
+  {v:'hellAll',l:'[特殊] 超地獄'},
+];
+
+const TYPE_META = {
+  jackpot:{l:'大当たり！',e:'🌟',c:'#ffd700',bc:'bj',sc:'r-jackpot',vc:'vj',ok:'jackpot'},
+  win:    {l:'当たり！',  e:'✨',c:'#3bffb0',bc:'bw',sc:'r-win',    vc:'vw',ok:'win'},
+  normal: {l:'縛り確定', e:'➖',c:'#8880aa',bc:'bn',sc:'r-normal',  vc:'',  ok:'normal'},
+  bad:    {l:'ハズレ！',  e:'💀',c:'#ff8c42',bc:'bb',sc:'r-bad',    vc:'vb',ok:'bad'},
+  doom:   {l:'大ハズレ！',e:'🔥',c:'#ff3b5c',bc:'bd',sc:'r-doom',   vc:'vd',ok:'doom'},
+  skip:   {l:'スキップ！',e:'🌟',c:'#3b8fff',bc:'bs',sc:'r-win',    vc:'vsk',ok:'skip'},
+  double: {l:'2回引き！', e:'✖2',c:'#b03bff',bc:'bs',sc:'r-special',vc:'vs',ok:'double'},
+  hard:   {l:'厳しい方！',e:'⚔️',c:'#b03bff',bc:'bs',sc:'r-special',vc:'vs',ok:'hard'},
+  chain:  {l:'連鎖地獄！',e:'⛓️',c:'#b03bff',bc:'bs',sc:'r-special',vc:'vs',ok:'chain'},
+  hellAll:{l:'超地獄！',  e:'👿',c:'#ff3b5c',bc:'bd',sc:'r-doom',   vc:'vd',ok:'hell'},
+};
+
+const OV = {
+  jackpot:{t:'大当たり！！',m:'超ラッキー！最高の条件をゲット！！',b:'background:linear-gradient(135deg,#8a7010,#ffd700);color:#06060f'},
+  win:    {t:'ラッキー！',  m:'当たり！有利な条件。運が良かった！',b:'background:linear-gradient(135deg,#1a8a5a,#3bffb0);color:#003322'},
+  normal: {t:'縛り確定',   m:'普通の縛り。頑張れ！',b:'background:#fff2;color:#f0eaff'},
+  bad:    {t:'ハズレ！',    m:'厳しい縛りが来た…乗り越えろ！',b:'background:linear-gradient(135deg,#7a4a1a,#ff8c42);color:white'},
+  doom:   {t:'大ハズレ！！',m:'最凶の縛り発動！！これを乗り越えられるか!?',b:'background:linear-gradient(135deg,#8a1a1a,#ff3b5c);color:white'},
+  skip:   {t:'スキップ！', m:'この項目はまるごと自由！好きに組める！',b:'background:linear-gradient(135deg,#1a4a8a,#3b8fff);color:white'},
+  double: {t:'2回引き！',  m:'このルーレットは2回引いて両方適用！',b:'background:linear-gradient(135deg,#5a1a8a,#b03bff);color:white'},
+  hard:   {t:'厳しい方！', m:'2回引いて、より厳しい縛りが採用される…',b:'background:linear-gradient(135deg,#5a1a8a,#b03bff);color:white'},
+  chain:  {t:'連鎖地獄！', m:'特殊ルーレットがさらに2回追加！どこまで…',b:'background:linear-gradient(135deg,#5a1a8a,#b03bff);color:white'},
+  hell:   {t:'超地獄モード！！',m:'全ルーレットが2回引き！最大難易度！！',b:'background:linear-gradient(135deg,#8a1a1a,#ff3b5c);color:white'},
+};
+
+/* ── default sample data ── */
+const DEFAULT = {
+  categories:[
+    {id:'special',  name:'特殊ルーレット',  icon:'🎭',order:1,isSpecial:true},
+    {id:'attribute',name:'属性ルーレット',  icon:'🔥',order:2},
+    {id:'skill',    name:'スキル縛り',      icon:'🛠',order:3},
+    {id:'skillturn',name:'スキルターン縛り',icon:'⏱',order:4},
+    {id:'rarity',   name:'レア度ルーレット',icon:'⭐',order:5},
+    {id:'people',   name:'人数ルーレット',  icon:'👥',order:6},
+    {id:'cost',     name:'コストルーレット',icon:'💰',order:7},
+  ],
+  items:[
+    // special (weight=10 all → uniform 1/15 each)
+    {cat:'special',text:'人数ルーレットを引かない（人数自由）',              type:'skip',   target:'people',    weight:10},
+    {cat:'special',text:'属性ルーレットを引かない（属性自由）',              type:'skip',   target:'attribute', weight:10},
+    {cat:'special',text:'スキル縛りルーレットを引かない（スキル自由）',      type:'skip',   target:'skill',     weight:10},
+    {cat:'special',text:'スキルターン縛りルーレットを引かない（ターン自由）',type:'skip',   target:'skillturn', weight:10},
+    {cat:'special',text:'レア度ルーレットを引かない（レア度自由）',          type:'skip',   target:'rarity',    weight:10},
+    {cat:'special',text:'コストルーレットを引かない（コスト自由）',          type:'skip',   target:'cost',      weight:10},
+    {cat:'special',text:'属性ルーレットを2回引き、両方適用',                 type:'double', target:'attribute', weight:10},
+    {cat:'special',text:'スキル縛りルーレットを2回引き、両方適用',           type:'double', target:'skill',     weight:10},
+    {cat:'special',text:'スキルターン縛りルーレットを2回引き、両方適用',     type:'double', target:'skillturn', weight:10},
+    {cat:'special',text:'レア度ルーレットを2回引き、厳しい方を採用',         type:'hard',   target:'rarity',    weight:10},
+    {cat:'special',text:'コストルーレットを2回引き、厳しい方を採用',         type:'hard',   target:'cost',      weight:10},
+    {cat:'special',text:'人数ルーレットを2回引き、少ない方を採用',           type:'hard',   target:'people',    weight:10},
+    {cat:'special',text:'特殊ルーレットをさらに2回引く（連鎖地獄）',         type:'chain',  target:'',          weight:10},
+    {cat:'special',text:'全ルーレットを2回ずつ引き、全部合体（超地獄）',     type:'hellAll',target:'',          weight:10},
+    {cat:'special',text:'全ルーレットを通常通り引く（当たり）',              type:'jackpot',target:'',          weight:10},
+    // attribute
+    {cat:'attribute',text:'火単属性',                  type:'normal',weight:10},
+    {cat:'attribute',text:'水単属性',                  type:'normal',weight:10},
+    {cat:'attribute',text:'風単属性',                  type:'normal',weight:10},
+    {cat:'attribute',text:'火＋水混合',                type:'normal',weight:10},
+    {cat:'attribute',text:'火＋風混合',                type:'normal',weight:10},
+    {cat:'attribute',text:'水＋風混合',                type:'normal',weight:10},
+    {cat:'attribute',text:'三色混合1体＋単属性4体',    type:'bad',   weight:10},
+    {cat:'attribute',text:'全員違う属性',              type:'bad',   weight:10},
+    {cat:'attribute',text:'属性変化スキル1体必須',     type:'normal',weight:10},
+    {cat:'attribute',text:'属性軽減スキル1体必須',     type:'normal',weight:10},
+    // skill
+    {cat:'skill',text:'攻撃上昇（バフ）禁止',type:'bad', weight:10},
+    {cat:'skill',text:'連続攻撃（連撃）禁止',type:'bad', weight:10},
+    {cat:'skill',text:'全体攻撃禁止',        type:'bad', weight:10},
+    {cat:'skill',text:'軽減スキル禁止',      type:'bad', weight:10},
+    {cat:'skill',text:'かばう・かわす禁止',  type:'bad', weight:10},
+    {cat:'skill',text:'短縮禁止',            type:'bad', weight:10},
+    {cat:'skill',text:'遅延禁止',            type:'bad', weight:10},
+    {cat:'skill',text:'回復禁止',            type:'doom',weight:10},
+    {cat:'skill',text:'蘇生禁止',            type:'doom',weight:10},
+    {cat:'skill',text:'属性変化禁止',        type:'bad', weight:10},
+    // skillturn
+    {cat:'skillturn',text:'スキルターン3以下禁止',    type:'bad',   weight:10},
+    {cat:'skillturn',text:'スキルターン4以下禁止',    type:'bad',   weight:10},
+    {cat:'skillturn',text:'スキルターン5以上のみ',    type:'bad',   weight:10},
+    {cat:'skillturn',text:'スキルターン6以上のみ',    type:'doom',  weight:10},
+    {cat:'skillturn',text:'スキルターン偶数のみ',     type:'normal',weight:10},
+    {cat:'skillturn',text:'スキルターン奇数のみ',     type:'normal',weight:10},
+    {cat:'skillturn',text:'初回短縮スキル禁止',       type:'bad',   weight:10},
+    {cat:'skillturn',text:'初回短縮スキル必須',       type:'normal',weight:10},
+    {cat:'skillturn',text:'遅延スキル1体必須',        type:'normal',weight:10},
+    {cat:'skillturn',text:'スキルターン自由（当たり）',type:'win',  weight:10},
+    // rarity
+    {cat:'rarity',text:'ZR以下のみ',        type:'doom',  weight:10},
+    {cat:'rarity',text:'MZR1体まで',        type:'bad',   weight:10},
+    {cat:'rarity',text:'MZR2体まで',        type:'normal',weight:10},
+    {cat:'rarity',text:'伝説1体必須',       type:'normal',weight:10},
+    {cat:'rarity',text:'伝説禁止',          type:'bad',   weight:10},
+    {cat:'rarity',text:'CR以上のみ',        type:'doom',  weight:10},
+    {cat:'rarity',text:'ZR3体以上必須',     type:'bad',   weight:10},
+    {cat:'rarity',text:'MZR禁止',          type:'bad',   weight:10},
+    {cat:'rarity',text:'伝説1体まで',       type:'normal',weight:10},
+    {cat:'rarity',text:'レア度自由（当たり）',type:'win', weight:10},
+    // people
+    {cat:'people',text:'3人',               type:'bad',    weight:10},
+    {cat:'people',text:'4人',               type:'normal', weight:10},
+    {cat:'people',text:'5人',               type:'win',    weight:10},
+    {cat:'people',text:'3〜5人自由',        type:'win',    weight:10},
+    {cat:'people',text:'3人固定（ハード）', type:'doom',   weight:10},
+    {cat:'people',text:'5人固定（イージー）',type:'jackpot',weight:10},
+    {cat:'people',text:'4人固定',           type:'normal', weight:10},
+    {cat:'people',text:'3人＋蘇生必須',     type:'bad',    weight:10},
+    {cat:'people',text:'5人＋回復禁止',     type:'bad',    weight:10},
+    {cat:'people',text:'人数自由（当たり）', type:'win',   weight:10},
+    // cost
+    {cat:'cost',text:'170コスト以内',            type:'normal',weight:10},
+    {cat:'cost',text:'150コスト以内',            type:'bad',   weight:10},
+    {cat:'cost',text:'130コスト以内',            type:'bad',   weight:10},
+    {cat:'cost',text:'100コスト以内（激ムズ）',  type:'doom',  weight:10},
+    {cat:'cost',text:'200コスト以内',            type:'win',   weight:10},
+    {cat:'cost',text:'1体50コスト以下のみ',      type:'bad',   weight:10},
+    {cat:'cost',text:'1体40コスト以下のみ',      type:'doom',  weight:10},
+    {cat:'cost',text:'1体60コスト以上のみ',      type:'normal',weight:10},
+    {cat:'cost',text:'コスト自由（当たり）',      type:'win',  weight:10},
+    {cat:'cost',text:'コスト合計ぴったり170',     type:'doom', weight:10},
+  ]
+};
+
+/* ══════════════════════════════════════════
+   DATA STATE
+══════════════════════════════════════════ */
+let D = {categories:[],items:[]}; // working editor copy
+
+function loadD(){
+  try{ const r=localStorage.getItem(LS_KEY); if(r) return JSON.parse(r); }catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULT));
+}
+function saveD(){
+  localStorage.setItem(LS_KEY, JSON.stringify(D));
+}
+function cats(){ return [...D.categories].sort((a,b)=>a.order-b.order); }
+function catItems(id){ return D.items.filter(it=>it.cat===id); }
+function specialId(){ return cats().find(c=>c.isSpecial)?.id||'special'; }
+
+/* ══════════════════════════════════════════
+   EDITOR UI
+══════════════════════════════════════════ */
+function toggleEditor(){
+  const wrap=document.getElementById('editorWrap');
+  const btn=document.getElementById('editToggle');
+  const open=wrap.classList.toggle('open');
+  btn.classList.toggle('open',open);
+  if(open) renderEditor();
+}
+
+function eTab(name){
+  document.querySelectorAll('.etab').forEach((t,i)=>t.classList.toggle('active',['cats','csv'][i]===name));
+  document.querySelectorAll('.esec').forEach(s=>s.classList.remove('active'));
+  document.getElementById('etab-'+name).classList.add('active');
+}
+
+function renderEditor(){
+  const grid=document.getElementById('catGrid');
+  grid.innerHTML='';
+  cats().forEach(cat=>{
+    const items=catItems(cat.id);
+    grid.appendChild(buildCatCard(cat,items));
+  });
+}
+
+function buildCatCard(cat,items){
+  const div=document.createElement('div');
+  div.className='cat-card';
+  div.id='cc-'+cat.id;
+  const totalW=items.reduce((s,it)=>s+(+it.weight||0),0);
+
+  // head
+  const head=document.createElement('div');
+  head.className='cat-head';
+  head.innerHTML=`<span class="ch-icon">${cat.icon}</span><span class="ch-name" id="chn-${cat.id}">${cat.name}</span><span class="ch-cnt" id="chc-${cat.id}">${items.length}項目</span><span class="ch-arr" id="cha-${cat.id}">▼</span>`;
+  head.onclick=()=>toggleCat(cat.id);
+  div.appendChild(head);
+
+  // body
+  const body=document.createElement('div');
+  body.className='cat-body';
+  body.id='cb-'+cat.id;
+
+  // meta
+  const meta=document.createElement('div');
+  meta.className='cat-meta';
+  meta.innerHTML=`
+    <div class="fgrp"><label>アイコン</label><input type="text" class="w50" value="${esc(cat.icon)}" maxlength="2" oninput="updCat('${cat.id}','icon',this.value)" onchange="rerenderHead('${cat.id}')"></div>
+    <div class="fgrp"><label>カテゴリ名</label><input type="text" value="${esc(cat.name)}" oninput="updCat('${cat.id}','name',this.value)" onchange="rerenderHead('${cat.id}')"></div>
+    <div class="fgrp"><label>順番</label><input type="number" class="w60" value="${cat.order}" min="1" onchange="updCat('${cat.id}','order',+this.value)"></div>
+    ${!cat.isSpecial?`<button class="ebtn ebtn-red ebtn-sm" onclick="delCat('${cat.id}')">🗑 削除</button>`:''}
+  `;
+  body.appendChild(meta);
+
+  if(cat.isSpecial){
+    const sp=document.createElement('div');
+    sp.className='sp-info';
+    sp.textContent='⚠ 特殊カテゴリ。type: skip/double/hard の場合、target欄に対象カテゴリIDを入力（複数はカンマ区切り）。';
+    body.appendChild(sp);
+  }
+
+  // table
+  const tbl=document.createElement('table');
+  tbl.className='itbl';
+  tbl.innerHTML=`<thead><tr><th class="td-num">#</th><th>テキスト</th><th>weight</th><th class="td-type">タイプ</th>${cat.isSpecial?'<th class="td-tgt">対象ID</th>':''}<th class="td-act"></th></tr></thead>`;
+  const tbody=document.createElement('tbody');
+  tbody.id='tb-'+cat.id;
+  items.forEach((it,i)=>tbody.appendChild(buildRow(cat,it,i+1,totalW)));
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  // prob total
+  const pt=document.createElement('div');
+  pt.className='prob-total '+(Math.abs(totalW-100)<.01?'ok':'warn');
+  pt.id='pt-'+cat.id;
+  pt.textContent=`weight合計: ${totalW} ${Math.abs(totalW-100)<.01?'✓ 均等':'← 100に揃えると均等確率'}`;
+  body.appendChild(pt);
+
+  // add item
+  const ab=document.createElement('button');
+  ab.className='ebtn ebtn-ghost ebtn-sm';
+  ab.style.marginTop='10px';
+  ab.textContent='＋ 項目を追加';
+  ab.onclick=()=>addItem(cat.id);
+  body.appendChild(ab);
+
+  div.appendChild(body);
+  return div;
+}
+
+function buildRow(cat,it,num,totalW){
+  const idx=D.items.indexOf(it);
+  const pct=totalW>0?((+it.weight/totalW)*100).toFixed(1):0;
+  const tr=document.createElement('tr');
+  const typeOpts=TYPE_OPTS.map(t=>`<option value="${t.v}"${it.type===t.v?' selected':''}>${t.l}</option>`).join('');
+  tr.innerHTML=`
+    <td class="td-num">${num}</td>
+    <td class="td-text"><input type="text" value="${esc(it.text||'')}" onchange="updItem(${idx},'text',this.value)"></td>
+    <td class="td-w">
+      <input type="number" value="${it.weight}" min="0" step="1" onchange="updItem(${idx},'weight',+this.value);rerenderTbl('${cat.id}')">
+      <div class="prob-bar-wrap"><div class="prob-bar" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="pct-txt">${pct}%</div>
+    </td>
+    <td class="td-type"><select onchange="updItem(${idx},'type',this.value)">${typeOpts}</select></td>
+    ${cat.isSpecial?`<td class="td-tgt"><input type="text" value="${esc(it.target||'')}" placeholder="例: attribute" onchange="updItem(${idx},'target',this.value)"></td>`:''}
+    <td class="td-act"><button class="ebtn ebtn-red ebtn-sm" onclick="delItem(${idx},'${cat.id}')">✕</button></td>
+  `;
+  return tr;
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function toggleCat(id){
+  document.getElementById('cb-'+id)?.classList.toggle('open');
+  document.getElementById('cha-'+id)?.classList.toggle('open');
+}
+
+function rerenderHead(id){
+  const cat=D.categories.find(c=>c.id===id);if(!cat)return;
+  const ni=document.getElementById('chn-'+id);const ic=document.querySelector(`#cc-${id} .ch-icon`);
+  if(ni)ni.textContent=cat.name;if(ic)ic.textContent=cat.icon;
+}
+
+function rerenderTbl(catId){
+  const cat=D.categories.find(c=>c.id===catId);if(!cat)return;
+  const items=catItems(catId);
+  const totalW=items.reduce((s,it)=>s+(+it.weight||0),0);
+  const tbody=document.getElementById('tb-'+catId);if(!tbody)return;
+  tbody.innerHTML='';
+  items.forEach((it,i)=>tbody.appendChild(buildRow(cat,it,i+1,totalW)));
+  const pt=document.getElementById('pt-'+catId);
+  if(pt){pt.className='prob-total '+(Math.abs(totalW-100)<.01?'ok':'warn');
+    pt.textContent=`weight合計: ${totalW} ${Math.abs(totalW-100)<.01?'✓ 均等':'← 100に揃えると均等確率'}`;}
+  const cc=document.getElementById('chc-'+catId);if(cc)cc.textContent=items.length+'項目';
+}
+
+function updCat(id,f,v){const c=D.categories.find(c=>c.id===id);if(c)c[f]=v;}
+function updItem(idx,f,v){if(D.items[idx])D.items[idx][f]=v;}
+
+function delItem(idx,catId){
+  if(!confirm('この項目を削除しますか？'))return;
+  D.items.splice(idx,1);rerenderTbl(catId);
+}
+function delCat(id){
+  const cat=D.categories.find(c=>c.id===id);
+  if(!confirm(`「${cat?.name}」と全項目を削除しますか？`))return;
+  D.categories=D.categories.filter(c=>c.id!==id);
+  D.items=D.items.filter(it=>it.cat!==id);
+  renderEditor();
+}
+function addItem(catId){
+  D.items.push({cat:catId,text:'新しい項目',type:'normal',weight:10,target:''});
+  rerenderTbl(catId);
+}
+
+function showAddCatForm(){
+  const wrap=document.getElementById('addCatFormWrap');
+  if(wrap.innerHTML){wrap.innerHTML='';return;}
+  wrap.innerHTML=`<div class="add-cat-form" style="margin-top:12px">
+    <h4>＋ 新しいカテゴリ</h4>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div class="fgrp"><label>ID（英数字）</label><input type="text" id="nid" placeholder="例: element" class="w80"></div>
+      <div class="fgrp"><label>カテゴリ名</label><input type="text" id="nnm" placeholder="元素ルーレット"></div>
+      <div class="fgrp"><label>アイコン</label><input type="text" id="nic" placeholder="🌊" maxlength="2" class="w50"></div>
+      <div class="fgrp"><label>順番</label><input type="number" id="nor" value="${D.categories.length+1}" min="1" class="w60"></div>
+      <button class="ebtn ebtn-green" onclick="submitAddCat()">追加</button>
+      <button class="ebtn ebtn-ghost" onclick="document.getElementById('addCatFormWrap').innerHTML=''">×</button>
+    </div>
+  </div>`;
+}
+
+function submitAddCat(){
+  const id=document.getElementById('nid').value.trim().replace(/\s/g,'_');
+  const name=document.getElementById('nnm').value.trim();
+  const icon=document.getElementById('nic').value.trim()||'🎲';
+  const order=+document.getElementById('nor').value||D.categories.length+1;
+  if(!id||!name){toast('IDと名前は必須です','err');return;}
+  if(D.categories.find(c=>c.id===id)){toast('そのIDは既に存在します','err');return;}
+  D.categories.push({id,name,icon,order});
+  document.getElementById('addCatFormWrap').innerHTML='';
+  renderEditor();
+  setTimeout(()=>{toggleCat(id);document.getElementById('cc-'+id)?.scrollIntoView({behavior:'smooth'});},50);
+  toast(`✅「${name}」を追加`,'ok');
+}
+
+function saveData(){
+  saveD();
+  toast('💾 保存しました。ゲームに反映されます','ok');
+  toggleEditor();
+  resetGame();
+}
+
+function resetToDefault(){
+  if(!confirm('サンプルデータに戻しますか？現在の編集は失われます'))return;
+  D=JSON.parse(JSON.stringify(DEFAULT));
+  renderEditor();
+  toast('🔄 サンプルデータに戻しました','ok');
+}
+
+/* ══════════════════════════════════════════
+   CSV
+══════════════════════════════════════════ */
+function buildCSV(){
+  const rows=['category_id,category_name,icon,order,text,type,weight,target'];
+  cats().forEach(cat=>{
+    catItems(cat.id).forEach(it=>{
+      rows.push([cc(cat.id),cc(cat.name),cc(cat.icon),cat.order,cc(it.text),cc(it.type),it.weight,cc(it.target||'')].join(','));
+    });
+  });
+  return rows.join('\n');
+}
+function cc(v){v=String(v||'');return(v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v;}
+
+function parseCSVText(text){
+  const lines=text.trim().split(/\r?\n/);
+  if(lines.length<2)throw new Error('行数が少なすぎます');
+  const hdr=parseLine(lines[0]);
+  const f=n=>hdr.indexOf(n);
+  const newCats={},newItems=[];
+  lines.slice(1).forEach(l=>{
+    const r=parseLine(l);if(r.length<6)return;
+    const catId=r[f('category_id')],catName=r[f('category_name')],icon=r[f('icon')]||'🎲';
+    const order=+r[f('order')]||1,text=r[f('text')],type=r[f('type')]||'normal';
+    const weight=+r[f('weight')]||10,target=r[f('target')]||'';
+    if(!catId||!text)return;
+    if(!newCats[catId]) newCats[catId]={id:catId,name:catName,icon,order,isSpecial:catId==='special'};
+    newItems.push({cat:catId,text,type,weight,target});
+  });
+  return{categories:Object.values(newCats).sort((a,b)=>a.order-b.order),items:newItems};
+}
+function parseLine(line){
+  const res=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){res.push(cur);cur='';}
+    else cur+=c;
+  }
+  res.push(cur);return res;
+}
+
+function exportCSV(){
+  const csv=buildCSV();
+  document.getElementById('exportTxt').value=csv;
+  navigator.clipboard.writeText(csv).then(()=>toast('📋 コピーしました','ok')).catch(()=>toast('テキストエリアからコピーしてください','ok'));
+}
+function dlCSV(){
+  const csv=buildCSV();
+  document.getElementById('exportTxt').value=csv;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='roulette_data.csv';a.click();
+  toast('⬇ ダウンロード開始','ok');
+}
+function importCSV(){
+  const text=document.getElementById('importTxt').value.trim();
+  if(!text){toast('テキストを入力してください','err');return;}
+  try{
+    const parsed=parseCSVText(text);
+    if(!parsed.categories.length)throw new Error('カテゴリが見つかりません');
+    D=parsed;renderEditor();
+    toast(`✅ ${parsed.categories.length}カテゴリ、${parsed.items.length}項目をインポート`,'ok');
+  }catch(e){toast('❌ インポート失敗: '+e.message,'err');}
+}
+function handleFile(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{document.getElementById('importTxt').value=e.target.result;importCSV();};
+  r.readAsText(f,'utf-8');
+}
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];if(!f)return;
+  const inp=document.getElementById('fi');
+  const dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;handleFile(inp);
+});
+
+/* ══════════════════════════════════════════
+   GAME STATE
+══════════════════════════════════════════ */
+let stepQueue=[], stepMods={}, finalRes={};
+let curStep=0, spinning=false, pending=[], rollCount=0;
+
+function wPick(items){
+  const tot=items.reduce((s,it)=>s+(+it.weight||1),0);
+  let r=Math.random()*tot;
+  for(const it of items){r-=(+it.weight||1);if(r<=0)return it;}
+  return items[items.length-1];
+}
+
+function resetGame(){
+  D=loadD();
+  stepQueue=cats().map(c=>c.id);
+  stepMods={};finalRes={};curStep=0;pending=[];rollCount=0;
+  document.getElementById('resPanel').style.display='none';
+  document.getElementById('resList').innerHTML='';
+  document.getElementById('flowBtns').style.display='none';
+  document.getElementById('finalScreen').classList.remove('show');
+  document.getElementById('mainCard').style.display='block';
+  document.getElementById('spinBtn').disabled=false;
+  document.getElementById('spinBtn').textContent='🎲 ルーレットを引く';
+  renderBar();loadStep(0);
+}
+
+function renderBar(){
+  const bar=document.getElementById('stepsBar');bar.innerHTML='';
+  stepQueue.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='step-dot'+(i===curStep?' active':i<curStep?' done':'');
+    bar.appendChild(d);
+  });
+}
+
+function loadStep(idx){
+  if(idx>=stepQueue.length){showFinal();return;}
+  curStep=idx;pending=[];rollCount=0;
+  document.getElementById('rollHist').innerHTML='';
+  const catId=stepQueue[idx];
+  const cat=cats().find(c=>c.id===catId);
+  if(!cat){nextStep();return;}
+  const mod=stepMods[catId];
+  renderBar();
+  document.getElementById('progTxt').textContent=`STEP ${idx+1} / ${stepQueue.length} — ${cat.icon} ${cat.name}`;
+  document.getElementById('cardTitle').textContent=`${cat.icon} ${cat.name}`;
+  document.getElementById('cardDesc').textContent=
+    mod==='skip'?'⏩ この項目はスキップ（自由）':
+    mod==='double'?'✖2 2回引いて両方適用！':
+    mod==='hard'?'⚔ 2回引いて厳しい方を採用！':'運命を引いてください。';
+  const slot=document.getElementById('slot');
+  slot.className='slot';
+  document.getElementById('slotNum').textContent='？';
+  document.getElementById('slotNum').classList.remove('rolling');
+  document.getElementById('slotTxt').textContent=mod==='skip'?'スキップ — この項目は自由です':'ボタンを押して運命を引け！';
+  document.getElementById('slotProb').textContent='';
+  document.getElementById('rbadge').className='rbadge';
+  document.getElementById('flowBtns').style.display='none';
+  const btn=document.getElementById('spinBtn');
+  btn.disabled=mod==='skip';
+  btn.textContent=mod==='skip'?'⏩ スキップ済み':'🎲 ルーレットを引く';
+  if(mod==='skip'){
+    finalRes[catId]=[{text:'自由（スキップ）',type:'skip',weight:0}];
+    setTimeout(()=>{
+      addResItem(cat,finalRes[catId]);
+      document.getElementById('resPanel').style.display='block';
+      document.getElementById('flowBtns').style.display='flex';
+      updNextBtn();
+    },300);
+  }
+}
+
+function spin(){
+  if(spinning)return;
+  const catId=stepQueue[curStep];
+  const cat=cats().find(c=>c.id===catId);
+  const items=catItems(catId);
+  if(!items.length){nextStep();return;}
+  const mod=stepMods[catId];
+  const maxRolls=(mod==='double'||mod==='hard')?2:1;
+  spinning=true;
+  document.getElementById('spinBtn').disabled=true;
+  const slot=document.getElementById('slot');
+  slot.className='slot spinning';
+  const numEl=document.getElementById('slotNum');
+  const txtEl=document.getElementById('slotTxt');
+  const probEl=document.getElementById('slotProb');
+  numEl.classList.add('rolling');
+  txtEl.textContent='運命を決定中…';probEl.textContent='';
+  let ticks=0,total=20+Math.floor(Math.random()*15);
+  const totW=items.reduce((s,it)=>s+(+it.weight||0),0);
+  const iv=setInterval(()=>{
+    numEl.textContent=Math.ceil(Math.random()*items.length);
+    txtEl.textContent=items[Math.floor(Math.random()*items.length)].text;
+    ticks++;
+    if(ticks>=total){
+      clearInterval(iv);
+      const chosen=wPick(items);
+      numEl.classList.remove('rolling');
+      numEl.textContent=items.indexOf(chosen)+1;
+      txtEl.textContent=chosen.text;
+      const pct=totW>0?((+chosen.weight/totW)*100).toFixed(1):'—';
+      probEl.textContent=`確率: ${pct}%`;
+      spinning=false;
+      pending.push(chosen);rollCount++;
+      if(maxRolls>1){
+        const chip=document.createElement('div');
+        chip.className='roll-chip';
+        const m=TYPE_META[chosen.type]||TYPE_META.normal;
+        chip.style.borderLeftColor=m.c;
+        chip.textContent=`${rollCount}回目: ${chosen.text}`;
+        document.getElementById('rollHist').appendChild(chip);
+      }
+      if(rollCount>=maxRolls){
+        const finalArr=mod==='hard'?[pickHarder(pending)]:[...pending];
+        finalRes[catId]=finalArr;
+        if(catId===specialId())applySpecial(finalArr);
+        showEffect(finalArr,slot);
+        addResItem(cat,finalArr);
+        document.getElementById('resPanel').style.display='block';
+        document.getElementById('flowBtns').style.display='flex';
+        updNextBtn();
+      }else{
+        slot.className='slot';
+        numEl.textContent='？';
+        txtEl.textContent=`1回目: ${pending[0].text} → もう一度！`;
+        probEl.textContent='';
+        document.getElementById('spinBtn').disabled=false;
+        document.getElementById('spinBtn').textContent=`🎲 ${rollCount+1}回目を引く`;
+      }
+    }
+  },60);
+}
+
+function pickHarder(rolls){
+  const rank=t=>({doom:5,bad:4,hard:3,chain:3,hellAll:3,normal:2,double:2,win:1,jackpot:0,skip:0})[t]??2;
+  return rolls.reduce((a,b)=>rank(a.type)>=rank(b.type)?a:b);
+}
+
+function applySpecial(arr){
+  const allIds=cats().map(c=>c.id);
+  const spId=specialId();
+  arr.forEach(chosen=>{
+    const t=chosen.type,tgt=chosen.target||'';
+    if(t==='skip'||t==='double'||t==='hard'){
+      tgt.split(',').map(s=>s.trim()).filter(Boolean).forEach(tid=>{
+        if(allIds.includes(tid))stepMods[tid]=t;
+      });
+    }else if(t==='chain'){
+      const rem=stepQueue.slice(curStep+1);
+      stepQueue=[...stepQueue.slice(0,curStep+1),spId,spId,...rem];
+      renderBar();
+    }else if(t==='hellAll'){
+      allIds.filter(id=>id!==spId).forEach(id=>stepMods[id]='double');
+    }
+  });
+}
+
+function showEffect(arr,slot){
+  const rk=t=>({jackpot:6,win:5,skip:5,double:4,hard:4,chain:4,hellAll:3,normal:2,bad:1,doom:0})[t]??2;
+  const dom=arr.reduce((a,b)=>rk(a.type)>=rk(b.type)?a:b);
+  const t=dom.type;const m=TYPE_META[t]||TYPE_META.normal;
+  slot.className='slot '+m.sc;
+  const badge=document.getElementById('rbadge');
+  badge.className='rbadge show '+m.bc;badge.textContent=m.l;
+  if(t!=='normal') showOv(m.ok, dom.text);
+  if(t==='jackpot'){rain();ptcl('#ffd700');}
+  else if(t==='win'||t==='skip'){rain();}
+  else if(t==='doom'||t==='hellAll'){shk();ptcl('#ff3b5c');}
+  else if(t==='bad'){shk();}
+  else if(['chain','double','hard'].includes(t)){ptcl('#b03bff');}
+  else{ptcl('#f5c842');}
+}
+
+function shk(){
+  document.body.classList.add('shake');
+  const el=document.createElement('div');el.className='lightning';document.body.appendChild(el);
+  setTimeout(()=>{document.body.classList.remove('shake');el.remove();},600);
+}
+
+function addResItem(cat,arr){
+  const list=document.getElementById('resList');
+  arr.forEach(chosen=>{
+    const m=TYPE_META[chosen.type]||TYPE_META.normal;
+    const div=document.createElement('div');
+    div.className='res-item';
+    div.innerHTML=`<div class="ri-icon">${cat.icon}</div><div><div class="ri-label">${cat.name}</div><div class="ri-val ${m.vc}">${chosen.text}</div></div>`;
+    list.appendChild(div);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>div.classList.add('show')));
+  });
+}
+
+function updNextBtn(){
+  const last=curStep>=stepQueue.length-1;
+  document.getElementById('nextBtn').textContent=last?'🏆 縛りを確定する！':'次のルーレットへ →';
+}
+
+function nextStep(){
+  curStep++;document.getElementById('flowBtns').style.display='none';
+  if(curStep>=stepQueue.length)showFinal();else loadStep(curStep);
+}
+
+function showFinal(){
+  document.getElementById('mainCard').style.display='none';
+  document.getElementById('resPanel').style.display='none';
+  document.getElementById('progTxt').textContent='✅ 全ルーレット完了！';
+  const fs=document.getElementById('finalScreen');fs.classList.add('show');
+  const list=document.getElementById('finalList');list.innerHTML='';
+  let delay=0;
+  [...new Set(stepQueue)].forEach(id=>{
+    const cat=cats().find(c=>c.id===id);if(!cat)return;
+    const arr=finalRes[id]||[{text:'未引き',type:'normal'}];
+    arr.forEach(chosen=>{
+      const m=TYPE_META[chosen.type]||TYPE_META.normal;
+      const li=document.createElement('li');
+      li.innerHTML=`<div style="font-size:1.1rem;flex-shrink:0">${cat.icon}</div><div><div style="font-size:.72rem;color:var(--dim)">${cat.name}</div><div style="font-weight:700;font-size:.95rem;line-height:1.4" class="${m.vc}">${chosen.text}</div></div>`;
+      list.appendChild(li);
+      setTimeout(()=>li.classList.add('show'),delay+=120);
+    });
+  });
+  setTimeout(()=>{rain();ptcl('#f5c842');},delay+200);
+}
+
+/* ── overlay ── */
+function showOv(key,detail){
+  const cfg=OV[key]||OV.normal;const m=TYPE_META[key]||TYPE_META.normal;
+  document.getElementById('ovEmoji').textContent=m.e;
+  document.getElementById('ovTitle').textContent=cfg.t;
+  document.getElementById('ovTitle').style.color=m.c;
+  document.getElementById('ovMsg').textContent=detail||cfg.m;
+  const btn=document.getElementById('ovClose');
+  btn.style.cssText=cfg.b+';padding:12px 32px;border:none;border-radius:12px;font-family:Dela Gothic One,sans-serif;font-size:1rem;cursor:pointer;';
+  document.getElementById('overlay').classList.add('show');
+}
+function closeOverlay(){document.getElementById('overlay').classList.remove('show');}
+
+/* ── vfx ── */
+function rain(){
+  const c=document.getElementById('goldRain');
+  const coins=['💰','⭐','🌟','✨','💫','🎉','🏆'];
+  for(let i=0;i<28;i++)setTimeout(()=>{
+    const el=document.createElement('div');el.className='coin';
+    el.textContent=coins[Math.floor(Math.random()*coins.length)];
+    el.style.setProperty('--dur',(1.2+Math.random()*1.2)+'s');
+    el.style.setProperty('--rot',(Math.random()*720-360)+'deg');
+    el.style.left=(Math.random()*100)+'vw';
+    c.appendChild(el);setTimeout(()=>el.remove(),2500);
+  },i*55);
+}
+function ptcl(color){
+  const c=document.getElementById('particles');
+  const cx=window.innerWidth/2,cy=window.innerHeight/2;
+  for(let i=0;i<22;i++){
+    const p=document.createElement('div');p.className='particle';
+    const a=(i/22)*Math.PI*2,d=100+Math.random()*160;
+    p.style.cssText=`width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;background:${color};left:${cx}px;top:${cy}px;--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d}px;`;
+    c.appendChild(p);setTimeout(()=>p.remove(),1600);
+  }
+}
+function createStars(){
+  const c=document.getElementById('stars');c.innerHTML='';
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2.5+.5;
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${1.5+Math.random()*3}s;animation-delay:${Math.random()*3}s;`;
+    c.appendChild(s);
+  }
+}
+
+/* ── toast ── */
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show '+type;
+  clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+/* ══════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════ */
+D = loadD();
+createStars();
+resetGame();
+</script>
+</body>
+</html>
